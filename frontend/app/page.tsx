@@ -1,6 +1,16 @@
- "use client";
+"use client";
 
 import { useMemo, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   DEFAULT_BTC_PRICE,
   DEFAULT_DIFFICULTY,
@@ -58,6 +68,62 @@ export default function Home() {
           ? "text-amber-300"
           : "text-slate-100"
       : "text-slate-500";
+
+  const selectedModule = MODULES.find((m) => m.id === moduleId);
+
+  // Données pour le graphique barres (Revenu minage net vs EDF)
+  const comparisonChartData =
+    result && Number.isFinite(result.revenueBtcNet) && Number.isFinite(result.revenueEdf)
+      ? [
+          {
+            name: "Annuel",
+            "Minage net": Math.max(0, Math.round(result.revenueBtcNet)),
+            "EDF OA": Math.max(0, Math.round(result.revenueEdf)),
+          },
+        ]
+      : [];
+
+  // Tableau 5 ans
+  const yearlyRows = useMemo(() => {
+    if (!result || !selectedModule) return [];
+
+    const rows: {
+      year: number;
+      initialCost: number;
+      leasing: number;
+      miningNet: number;
+      edf: number;
+      cashflow: number;
+      cumulative: number;
+    }[] = [];
+
+    let cumulative = 0;
+
+    for (let year = 1; year <= 5; year++) {
+      const leasingAnnual = selectedModule.leasingMonthly * 12;
+      const miningNet = result.revenueBtcNet;
+      const edf = result.revenueEdf;
+      const advantage = result.realAnnualAdvantage;
+
+      const initialCost = year === 1 ? selectedModule.costInstallation : 0;
+      const cashflow =
+        year === 1 ? advantage - selectedModule.costInstallation : advantage;
+
+      cumulative += cashflow;
+
+      rows.push({
+        year,
+        initialCost,
+        leasing: leasingAnnual,
+        miningNet,
+        edf,
+        cashflow,
+        cumulative,
+      });
+    }
+
+    return rows;
+  }, [result, selectedModule]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -188,8 +254,8 @@ export default function Home() {
                 Résultats de la simulation
               </h2>
               <p className="mt-1 text-sm text-slate-400">
-                Les KPIs (ROI, avantage annuel, comparaison Minage vs EDF) seront
-                affichés ici.
+                Les KPIs, le tableau 5 ans et la comparaison Minage vs EDF se
+                mettent à jour en temps réel.
               </p>
             </div>
 
@@ -241,11 +307,131 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-8 flex h-64 items-center justify-center rounded-2xl border border-dashed border-slate-800 bg-slate-950/40 text-sm text-slate-500">
-            Zone graphique / tableau comparatif Minage vs EDF<br />
-            <span className="text-xs text-slate-600">
-              (Seront implémentés à l&apos;étape &quot;KPIs + graphiques&quot;)
-            </span>
+          {/* Tableau détaillé sur 5 ans */}
+          <div className="mt-8 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/60">
+            <div className="border-b border-slate-800 px-4 py-3">
+              <p className="text-sm font-medium text-slate-100">
+                Projection sur 5 ans
+              </p>
+              <p className="text-xs text-slate-500">
+                Cashflow annuel et cumulé pour la solution Minage vs revenu EDF
+              </p>
+            </div>
+            <div className="w-full overflow-x-auto">
+              <table className="min-w-full text-left text-xs text-slate-300">
+                <thead className="border-b border-slate-800 bg-slate-900/80">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Année</th>
+                    <th className="px-4 py-3 font-medium">Coût initial</th>
+                    <th className="px-4 py-3 font-medium">Loyer leasing</th>
+                    <th className="px-4 py-3 font-medium">Revenu minage net</th>
+                    <th className="px-4 py-3 font-medium">Revenu EDF</th>
+                    <th className="px-4 py-3 font-medium">Cashflow annuel</th>
+                    <th className="px-4 py-3 font-medium">
+                      Trésorerie cumulée
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {yearlyRows.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="px-4 py-6 text-center text-slate-500"
+                      >
+                        Les données de simulation apparaîtront ici dès que les
+                        paramètres seront valides.
+                      </td>
+                    </tr>
+                  ) : (
+                    yearlyRows.map((row) => (
+                      <tr
+                        key={row.year}
+                        className="border-t border-slate-900/80 hover:bg-slate-900/60"
+                      >
+                        <td className="px-4 py-3 text-slate-200">
+                          {row.year}
+                        </td>
+                        <td className="px-4 py-3">
+                          {formatCurrency(row.initialCost)}
+                        </td>
+                        <td className="px-4 py-3">
+                          {formatCurrency(row.leasing)}
+                        </td>
+                        <td className="px-4 py-3">
+                          {formatCurrency(row.miningNet)}
+                        </td>
+                        <td className="px-4 py-3">
+                          {formatCurrency(row.edf)}
+                        </td>
+                        <td className="px-4 py-3">
+                          {formatCurrency(row.cashflow)}
+                        </td>
+                        <td className="px-4 py-3">
+                          {formatCurrency(row.cumulative)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Graphique comparaison Minage vs EDF */}
+          <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium text-slate-100">
+                  Revenu annuel : Minage vs EDF OA
+                </p>
+                <p className="text-xs text-slate-500">
+                  Visualisation comparative du revenu brut net minage et du
+                  revenu EDF sur la base des paramètres actuels.
+                </p>
+              </div>
+            </div>
+            {comparisonChartData.length === 0 ? (
+              <div className="flex h-52 items-center justify-center rounded-xl border border-dashed border-slate-800 bg-slate-950/60 text-xs text-slate-500">
+                Ajustez les paramètres pour afficher le graphique comparatif.
+              </div>
+            ) : (
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={comparisonChartData}
+                    margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#1f2937"
+                      vertical={false}
+                    />
+                    <XAxis dataKey="name" stroke="#9ca3af" />
+                    <YAxis
+                      stroke="#9ca3af"
+                      tickFormatter={(value) =>
+                        `${Math.round(value / 1_000)}k`
+                      }
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#020617",
+                        borderColor: "#1f2937",
+                        borderRadius: 8,
+                        fontSize: 12,
+                      }}
+                      formatter={(value: number) =>
+                        formatCurrency(Number(value))
+                      }
+                    />
+                    <Legend />
+                    <Bar dataKey="Minage net" fill="#22c55e" radius={6} />
+                    <Bar dataKey="EDF OA" fill="#38bdf8" radius={6} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
 
           <p className="mt-6 text-[11px] text-slate-500">

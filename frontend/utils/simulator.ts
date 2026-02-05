@@ -221,9 +221,9 @@ export function runSimulation(params: {
   } = params;
 
   const scenario = SCENARIOS.find((s) => s.id === scenarioId);
-  const module = MODULES.find((m) => m.id === moduleId);
+  const selectedModule = MODULES.find((m) => m.id === moduleId);
 
-  if (!scenario || !module) return null;
+  if (!scenario || !selectedModule) return null;
 
   const surplusKwhAnnual = computeSurplusKwhAnnual(scenario);
   const averageSurplusKw = computeAverageSurplusKw(
@@ -240,7 +240,7 @@ export function runSimulation(params: {
     btcMinedAnnual,
     btcPrice,
     surplusKwhAnnual,
-    module,
+    module: selectedModule,
     edfRate,
     solarBlockMargin,
   });
