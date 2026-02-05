@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Bar,
   BarChart,
@@ -38,11 +40,18 @@ const formatYears = (value: number | null | undefined) => {
 };
 
 export default function Home() {
+  const searchParams = useSearchParams();
+
+  const initialScenarioId =
+    searchParams.get("scenario") ?? SCENARIOS[0]?.id ?? "";
+  const initialModuleId =
+    searchParams.get("module") ?? MODULES[0]?.id ?? "";
+
   const [btcPrice, setBtcPrice] = useState<number>(DEFAULT_BTC_PRICE);
   const [difficulty, setDifficulty] = useState<number>(DEFAULT_DIFFICULTY);
   const [edfRate, setEdfRate] = useState<number>(EDF_OA_RATE);
-  const [scenarioId, setScenarioId] = useState<string>(SCENARIOS[0]?.id ?? "");
-  const [moduleId, setModuleId] = useState<string>(MODULES[0]?.id ?? "");
+  const [scenarioId, setScenarioId] = useState<string>(initialScenarioId);
+  const [moduleId, setModuleId] = useState<string>(initialModuleId);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [asicEfficiency, setAsicEfficiency] =
     useState<number>(DEFAULT_ASIC_EFFICIENCY);
@@ -113,7 +122,7 @@ export default function Home() {
     let cumulative = 0;
 
     for (let year = 1; year <= 5; year++) {
-      const leasingAnnual = selectedModule.leasingMonthly * 12;
+      const leasingAnnual = selectedModule.monthlyLeasing * 12;
       const miningNet = result.revenueBtcNet;
       const edf = result.revenueEdf;
       const advantage = result.realAnnualAdvantage;
@@ -250,6 +259,19 @@ export default function Home() {
                 </div>
               </div>
             </section>
+
+            <Link
+              href="/scenarios"
+              className="inline-flex w-full items-center justify-center rounded-full border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-medium text-slate-100 transition hover:border-emerald-400 hover:bg-slate-900"
+            >
+              Voir les scénarios types
+            </Link>
+            <Link
+              href="/modules"
+              className="inline-flex w-full items-center justify-center rounded-full border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-medium text-slate-100 transition hover:border-emerald-400 hover:bg-slate-900"
+            >
+              Voir les modules ASIC
+            </Link>
 
             {/* Mode avancé */}
             <section className="space-y-3 border-t border-slate-800 pt-4">

@@ -17,9 +17,11 @@ export const SOLAR_RESOURCE = 1_200; // kWh/kWc/an (gisement)
 export type ModuleConfig = {
   id: string;
   name: string;
-  costHardware: number;
+  description: string;
+  targetSurplusKw: number;
+  costHardwareRef: number;
   costInstallation: number;
-  leasingMonthly: number;
+  monthlyLeasing: number;
   maintenanceRate: number;
   residualValue5Years: number;
 };
@@ -27,11 +29,13 @@ export type ModuleConfig = {
 export type ScenarioConfig = {
   id: string;
   name: string;
-  surplusTargetKw: number;
-  installedPowerKwc: number;
-  autoconsumptionWinter: number;
-  autoconsumptionSummer: number;
-  exploitationHours: number;
+  description: string;
+  installedPowerKwc: number; // Puissance crête installée (kWc)
+  solarYield: number; // Gisement (kWh/kWc/an)
+  selfConsumptionWinter: number; // % Autoconsommation hiver (0-100)
+  selfConsumptionSummer: number; // % Autoconsommation été (0-100)
+  exploitationHours: number; // Heures de minage par jour (moyenne)
+  recommendedModuleId: string; // Module suggéré pour ce scénario
 };
 
 export type SimulationResult = {
@@ -47,76 +51,121 @@ export type SimulationResult = {
   cashflowYear1: number;
 };
 
-// Données d'exemple (placeholder) pour 3 modules et 3 scénarios.
-// À adapter avec les vraies valeurs business.
 export const MODULES: ModuleConfig[] = [
   {
-    id: "module-1",
-    name: "Module 1",
-    costHardware: 6_000,
+    id: "module_1",
+    name: "Module 1 (10 kW)",
+    description: "Idéal pour petites toitures (Écoles, PME)",
+    targetSurplusKw: 10,
+    costHardwareRef: 6_000,
     costInstallation: 5_400,
-    leasingMonthly: 104,
+    monthlyLeasing: 104,
     maintenanceRate: 0.25,
     residualValue5Years: 1_008,
   },
   {
-    id: "module-2",
-    name: "Module 2",
-    costHardware: 12_000,
-    costInstallation: 9_000,
-    leasingMonthly: 190,
+    id: "module_2",
+    name: "Module 2 (50 kW)",
+    description: "Pour Supermarchés et bâtiments moyens",
+    targetSurplusKw: 50,
+    costHardwareRef: 27_000,
+    costInstallation: 9_600,
+    monthlyLeasing: 468,
     maintenanceRate: 0.25,
-    residualValue5Years: 2_000,
+    residualValue5Years: 4_538,
   },
   {
-    id: "module-3",
-    name: "Module 3",
-    costHardware: 18_000,
-    costInstallation: 12_000,
-    leasingMonthly: 260,
+    id: "module_3",
+    name: "Module 3 (100 kW)",
+    description: "Pour Centres Commerciaux et Usines",
+    targetSurplusKw: 100,
+    costHardwareRef: 55_000,
+    costInstallation: 15_600,
+    monthlyLeasing: 953,
     maintenanceRate: 0.25,
-    residualValue5Years: 3_000,
+    residualValue5Years: 9_244,
+  },
+  {
+    id: "module_4",
+    name: "Module 4 (150 kW)",
+    description: "Pour grandes Fermes Solaires (ex: Scénario Trackers)",
+    targetSurplusKw: 150,
+    costHardwareRef: 82_000,
+    costInstallation: 21_000,
+    monthlyLeasing: 1_420,
+    maintenanceRate: 0.25,
+    residualValue5Years: 13_780,
+  },
+  {
+    id: "module_5",
+    name: "Module 5 (250 kW)",
+    description: "Infrastructure industrielle haute puissance",
+    targetSurplusKw: 250,
+    costHardwareRef: 137_000,
+    costInstallation: 32_000,
+    monthlyLeasing: 2_380,
+    maintenanceRate: 0.25,
+    residualValue5Years: 23_000,
   },
 ];
 
 export const SCENARIOS: ScenarioConfig[] = [
   {
-    id: "school",
-    name: "École primaire",
-    surplusTargetKw: 10,
+    id: "ecole",
+    name: "Scénario 1 : École primaire",
+    description: "Petite toiture, forte autoconsommation en hiver.",
     installedPowerKwc: 80,
-    autoconsumptionWinter: 0.9,
-    autoconsumptionSummer: 0.7,
+    solarYield: 1_200,
+    selfConsumptionWinter: 90,
+    selfConsumptionSummer: 70,
     exploitationHours: 6,
+    recommendedModuleId: "module_1",
   },
   {
-    id: "supermarket",
-    name: "Supermarché",
-    surplusTargetKw: 30,
-    installedPowerKwc: 250,
-    autoconsumptionWinter: 0.85,
-    autoconsumptionSummer: 0.6,
-    exploitationHours: 8,
+    id: "supermarche",
+    name: "Scénario 2 : Supermarché",
+    description: "Moyenne surface, consommation stable.",
+    installedPowerKwc: 550,
+    solarYield: 1_200,
+    selfConsumptionWinter: 90,
+    selfConsumptionSummer: 80,
+    exploitationHours: 6,
+    recommendedModuleId: "module_2",
   },
   {
-    id: "mall",
-    name: "Centre commercial",
-    surplusTargetKw: 80,
-    installedPowerKwc: 600,
-    autoconsumptionWinter: 0.8,
-    autoconsumptionSummer: 0.55,
-    exploitationHours: 10,
+    id: "centre_commercial",
+    name: "Scénario 3 : Centre commercial",
+    description: "Grande toiture, gros volume de surplus.",
+    installedPowerKwc: 1_300,
+    solarYield: 1_200,
+    selfConsumptionWinter: 90,
+    selfConsumptionSummer: 85,
+    exploitationHours: 6,
+    recommendedModuleId: "module_3",
+  },
+  {
+    id: "ferme_trackers",
+    name: "Scénario 4 : Ferme avec trackers",
+    description: "Production optimisée mais faible autoconsommation.",
+    installedPowerKwc: 150,
+    solarYield: 1_200,
+    selfConsumptionWinter: 40,
+    selfConsumptionSummer: 10,
+    exploitationHours: 6,
+    recommendedModuleId: "module_4",
   },
 ];
 
 // 1. Calcul du surplus énergétique
 export function computeSurplusKwhAnnual(
   scenario: ScenarioConfig,
-  solarResource: number = SOLAR_RESOURCE,
+  solarResourceOverride?: number,
 ): number {
-  const annualProductionKwh = scenario.installedPowerKwc * solarResource;
-  const tacAverage =
-    (scenario.autoconsumptionWinter + scenario.autoconsumptionSummer) / 2;
+  const solarYield = solarResourceOverride ?? scenario.solarYield ?? SOLAR_RESOURCE;
+  const annualProductionKwh = scenario.installedPowerKwc * solarYield;
+  const tacAveragePercent =
+    (scenario.selfConsumptionWinter + scenario.selfConsumptionSummer) / 2;
+  const tacAverage = tacAveragePercent / 100;
   const surplusAnnual = annualProductionKwh * (1 - tacAverage);
   return surplusAnnual;
 }
@@ -180,7 +229,7 @@ export function computeFinancials(params: {
   const revenueEdf = surplusKwhAnnual * edfRate;
   const gainVsEdfNet = revenueBtcNet - revenueEdf;
 
-  const leasingAnnualCost = module.leasingMonthly * 12;
+  const leasingAnnualCost = module.monthlyLeasing * 12;
   const realAnnualAdvantage = gainVsEdfNet - leasingAnnualCost;
 
   const installationCost = module.costInstallation;
