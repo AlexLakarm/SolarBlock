@@ -110,8 +110,11 @@ export const SCENARIOS: ScenarioConfig[] = [
 ];
 
 // 1. Calcul du surplus énergétique
-export function computeSurplusKwhAnnual(scenario: ScenarioConfig): number {
-  const annualProductionKwh = scenario.installedPowerKwc * SOLAR_RESOURCE;
+export function computeSurplusKwhAnnual(
+  scenario: ScenarioConfig,
+  solarResource: number = SOLAR_RESOURCE,
+): number {
+  const annualProductionKwh = scenario.installedPowerKwc * solarResource;
   const tacAverage =
     (scenario.autoconsumptionWinter + scenario.autoconsumptionSummer) / 2;
   const surplusAnnual = annualProductionKwh * (1 - tacAverage);
@@ -209,6 +212,7 @@ export function runSimulation(params: {
   asicEfficiencyJPerTh?: number;
   edfRate?: number;
   solarBlockMargin?: number;
+   solarResource?: number;
 }): SimulationResult | null {
   const {
     scenarioId,
@@ -218,6 +222,7 @@ export function runSimulation(params: {
     asicEfficiencyJPerTh = DEFAULT_ASIC_EFFICIENCY,
     edfRate,
     solarBlockMargin,
+    solarResource = SOLAR_RESOURCE,
   } = params;
 
   const scenario = SCENARIOS.find((s) => s.id === scenarioId);
@@ -225,7 +230,7 @@ export function runSimulation(params: {
 
   if (!scenario || !selectedModule) return null;
 
-  const surplusKwhAnnual = computeSurplusKwhAnnual(scenario);
+  const surplusKwhAnnual = computeSurplusKwhAnnual(scenario, solarResource);
   const averageSurplusKw = computeAverageSurplusKw(
     surplusKwhAnnual,
     scenario.exploitationHours,

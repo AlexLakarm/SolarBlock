@@ -13,10 +13,13 @@ import {
 } from "recharts";
 import {
   DEFAULT_BTC_PRICE,
+  DEFAULT_ASIC_EFFICIENCY,
   DEFAULT_DIFFICULTY,
   EDF_OA_RATE,
   MODULES,
   SCENARIOS,
+  SOLAR_BLOCK_MARGIN,
+  SOLAR_RESOURCE,
   runSimulation,
 } from "@/utils/simulator";
 
@@ -40,6 +43,13 @@ export default function Home() {
   const [edfRate, setEdfRate] = useState<number>(EDF_OA_RATE);
   const [scenarioId, setScenarioId] = useState<string>(SCENARIOS[0]?.id ?? "");
   const [moduleId, setModuleId] = useState<string>(MODULES[0]?.id ?? "");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [asicEfficiency, setAsicEfficiency] =
+    useState<number>(DEFAULT_ASIC_EFFICIENCY);
+  const [solarResource, setSolarResource] =
+    useState<number>(SOLAR_RESOURCE);
+  const [margin, setMargin] =
+    useState<number>(SOLAR_BLOCK_MARGIN * 100);
 
   const result = useMemo(
     () =>
@@ -49,8 +59,11 @@ export default function Home() {
         btcPrice,
         difficultyMTh: difficulty,
         edfRate,
+        asicEfficiencyJPerTh: asicEfficiency,
+        solarResource,
+        solarBlockMargin: margin / 100,
       }),
-    [btcPrice, difficulty, edfRate, scenarioId, moduleId],
+    [btcPrice, difficulty, edfRate, scenarioId, moduleId, asicEfficiency, solarResource, margin],
   );
 
   const roiSafe = result?.roiYears ?? null;
@@ -238,11 +251,85 @@ export default function Home() {
               </div>
             </section>
 
-            <p className="pt-2 text-[11px] leading-relaxed text-slate-500">
-              Les calculs détaillés (surplus, minage, ROI) seront implémentés
-              dans les prochaines étapes. Cette interface sert de base pour le
-              simulateur SolarBlock.
-            </p>
+            {/* Mode avancé */}
+            <section className="space-y-3 border-t border-slate-800 pt-4">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                  Mode avancé
+                </h2>
+                <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-400">
+                  <span>Afficher</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvanced((prev) => !prev)}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full border transition ${
+                      showAdvanced
+                        ? "border-emerald-500 bg-emerald-500/30"
+                        : "border-slate-600 bg-slate-900"
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 rounded-full bg-white shadow transition ${
+                        showAdvanced ? "translate-x-4" : "translate-x-1"
+                      }`}
+                    />
+                  </button>
+                </label>
+              </div>
+
+              {showAdvanced && (
+                <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-300">
+                      Efficacité ASIC (J/TH)
+                    </label>
+                    <input
+                      type="number"
+                      value={asicEfficiency}
+                      onChange={(event) =>
+                        setAsicEfficiency(Number(event.target.value) || 0)
+                      }
+                      className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none ring-0 transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/30"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-300">
+                      Gisement solaire (kWh/kWc/an)
+                    </label>
+                    <input
+                      type="number"
+                      value={solarResource}
+                      onChange={(event) =>
+                        setSolarResource(Number(event.target.value) || 0)
+                      }
+                      className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none ring-0 transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/30"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-300">
+                      Marge SolarBlock (%)
+                    </label>
+                    <input
+                      type="number"
+                      value={margin}
+                      onChange={(event) =>
+                        setMargin(Number(event.target.value) || 0)
+                      }
+                      className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none ring-0 transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/30"
+                    />
+                  </div>
+
+                  <p className="pt-1 text-[10px] leading-relaxed text-slate-500">
+                    Ces paramètres permettent d&apos;ajuster les hypothèses
+                    techniques du modèle (efficacité du hardware, gisement
+                    solaire moyen, marge SolarBlock) pour coller à la réalité du
+                    site client.
+                  </p>
+                </div>
+              )}
+            </section>
           </div>
         </aside>
 
