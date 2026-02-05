@@ -1,16 +1,64 @@
-const scenarios = [
-  { id: "school", name: "École primaire" },
-  { id: "supermarket", name: "Supermarché" },
-  { id: "mall", name: "Centre commercial" },
-];
+ "use client";
 
-const modules = [
-  { id: "module-1", name: "Module 1" },
-  { id: "module-2", name: "Module 2" },
-  { id: "module-3", name: "Module 3" },
-];
+import { useMemo, useState } from "react";
+import {
+  DEFAULT_BTC_PRICE,
+  DEFAULT_DIFFICULTY,
+  EDF_OA_RATE,
+  MODULES,
+  SCENARIOS,
+  runSimulation,
+} from "@/utils/simulator";
+
+const formatCurrency = (value: number | null | undefined) => {
+  if (!value || !Number.isFinite(value)) return "—";
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  }).format(value);
+};
+
+const formatYears = (value: number | null | undefined) => {
+  if (!value || !Number.isFinite(value)) return "—";
+  return value.toFixed(1);
+};
 
 export default function Home() {
+  const [btcPrice, setBtcPrice] = useState<number>(DEFAULT_BTC_PRICE);
+  const [difficulty, setDifficulty] = useState<number>(DEFAULT_DIFFICULTY);
+  const [edfRate, setEdfRate] = useState<number>(EDF_OA_RATE);
+  const [scenarioId, setScenarioId] = useState<string>(SCENARIOS[0]?.id ?? "");
+  const [moduleId, setModuleId] = useState<string>(MODULES[0]?.id ?? "");
+
+  const result = useMemo(
+    () =>
+      runSimulation({
+        scenarioId,
+        moduleId,
+        btcPrice,
+        difficultyMTh: difficulty,
+        edfRate,
+      }),
+    [btcPrice, difficulty, edfRate, scenarioId, moduleId],
+  );
+
+  const roiSafe = result?.roiYears ?? null;
+  const annualAdvantageSafe = result?.realAnnualAdvantage ?? null;
+  const gain5YearsSafe =
+    result && Number.isFinite(result.realAnnualAdvantage)
+      ? result.realAnnualAdvantage * 5
+      : null;
+
+  const roiBadgeColor =
+    roiSafe && Number.isFinite(roiSafe)
+      ? roiSafe < 2
+        ? "text-emerald-400"
+        : roiSafe > 5
+          ? "text-amber-300"
+          : "text-slate-100"
+      : "text-slate-500";
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-6 px-4 py-6 md:flex-row md:gap-8 md:py-10">
@@ -42,7 +90,10 @@ export default function Home() {
                   </label>
                   <input
                     type="number"
-                    defaultValue={70000}
+                    value={btcPrice}
+                    onChange={(event) =>
+                      setBtcPrice(Number(event.target.value) || 0)
+                    }
                     className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none ring-0 transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/30"
                   />
                 </div>
@@ -53,7 +104,10 @@ export default function Home() {
                   </label>
                   <input
                     type="number"
-                    defaultValue={1400}
+                    value={difficulty}
+                    onChange={(event) =>
+                      setDifficulty(Number(event.target.value) || 0)
+                    }
                     className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none ring-0 transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/30"
                   />
                 </div>
@@ -65,7 +119,10 @@ export default function Home() {
                   <input
                     type="number"
                     step="0.01"
-                    defaultValue={0.06}
+                    value={edfRate}
+                    onChange={(event) =>
+                      setEdfRate(Number(event.target.value) || 0)
+                    }
                     className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none ring-0 transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/30"
                   />
                 </div>
@@ -83,8 +140,12 @@ export default function Home() {
                   <label className="text-xs font-medium text-slate-300">
                     Scénario
                   </label>
-                  <select className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none ring-0 transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/30">
-                    {scenarios.map((scenario) => (
+                  <select
+                    className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none ring-0 transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/30"
+                    value={scenarioId}
+                    onChange={(event) => setScenarioId(event.target.value)}
+                  >
+                    {SCENARIOS.map((scenario) => (
                       <option key={scenario.id} value={scenario.id}>
                         {scenario.name}
                       </option>
@@ -96,8 +157,12 @@ export default function Home() {
                   <label className="text-xs font-medium text-slate-300">
                     Module
                   </label>
-                  <select className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none ring-0 transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/30">
-                    {modules.map((module) => (
+                  <select
+                    className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none ring-0 transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/30"
+                    value={moduleId}
+                    onChange={(event) => setModuleId(event.target.value)}
+                  >
+                    {MODULES.map((module) => (
                       <option key={module.id} value={module.id}>
                         {module.name}
                       </option>
@@ -130,7 +195,7 @@ export default function Home() {
 
             <div className="flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">
               <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
-              Mode démo – logique métier à venir
+              Simulation en temps réel – ajustez les paramètres
             </div>
           </div>
 
@@ -140,10 +205,14 @@ export default function Home() {
                 ROI estimé
               </p>
               <p className="mt-3 text-3xl font-semibold text-emerald-400">
-                — ans
+                <span className={roiBadgeColor}>
+                  {formatYears(roiSafe)}{" "}
+                  {Number.isFinite(roiSafe ?? NaN) && "ans"}
+                </span>
               </p>
               <p className="mt-2 text-xs text-slate-500">
-                S&apos;affichera dès que la logique de calcul sera branchée.
+                Temps de retour sur investissement basé sur l&apos;avantage
+                net par rapport à EDF OA.
               </p>
             </div>
 
@@ -152,7 +221,7 @@ export default function Home() {
                 Avantage annuel réel
               </p>
               <p className="mt-3 text-3xl font-semibold text-slate-100">
-                — €
+                {formatCurrency(annualAdvantageSafe)}
               </p>
               <p className="mt-2 text-xs text-slate-500">
                 Différence nette entre Minage et EDF OA après leasing.
@@ -164,7 +233,7 @@ export default function Home() {
                 Gain cumulé sur 5 ans
               </p>
               <p className="mt-3 text-3xl font-semibold text-slate-100">
-                — €
+                {formatCurrency(gain5YearsSafe)}
               </p>
               <p className="mt-2 text-xs text-slate-500">
                 Projection à horizon 5 ans (hors variation BTC/difficulté).
