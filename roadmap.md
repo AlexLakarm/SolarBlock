@@ -168,3 +168,79 @@ Agis comme un expert React/Next.js. Initialise un projet Next.js avec TypeScript
 3. **Disclaimer :** Ajoutez une petite note en bas de page indiquant que les résultats dépendent de la difficulté du réseau et du cours du Bitcoin.
 
 Cette feuille de route permet de passer de votre Excel statique à une vraie *Web App* commerciale en quelques heures de développement assisté par IA.
+
+---
+
+# 🗺️ Feuille de Route : Rentabilité Interne (SolarBlock)
+
+### Objectif
+
+Ajouter un tableau de bord (caché ou activable par toggle **« Renta Client / Renta SolarBlock »**) qui calcule les marges nettes de SolarBlock sur chaque projet, en prenant en compte :
+
+1. **Marge à l'installation** (Cash immédiat).
+2. **Marge sur le Leasing** (Différentiel Loyer vs Coût Matériel).
+3. **Marge sur le Minage** (Les fameux 10% de commission).
+
+---
+
+## Étape 1 : Mise à jour des Données (Structure)
+
+Enrichir les objets `MODULES` avec les coûts d'achat internes (ce que le client ne voit pas).
+
+**Champs ajoutés à chaque module :**
+
+* `internalHardwareCost` : Prix d'achat réel des ASICs par SolarBlock.
+* `internalInstallCost` : Coût réel de la main d'œuvre et du câblage pour SolarBlock.
+
+**Valeurs (marge estimée ~20% sur l'install, coûts hardware négociés) :**
+
+* **Module 1 :** internalHardwareCost: 5000, internalInstallCost: 4300.
+* **Module 2 :** internalHardwareCost: 22000, internalInstallCost: 7600.
+* **Module 3 :** internalHardwareCost: 48000, internalInstallCost: 12500.
+* **Module 4 :** internalHardwareCost: 72000, internalInstallCost: 16800.
+* **Module 5 :** internalHardwareCost: 120000, internalInstallCost: 25600.
+
+---
+
+## Étape 2 : Logique de Calcul (Business Logic)
+
+Fonction `calculateSolarBlockProfitability` : prend en entrée le module sélectionné et les résultats de minage du client. Retourne :
+
+1. **Marge Installation (Upfront Cash)** : `Module.costInstallation` (facturé client) − `Module.internalInstallCost`.
+2. **Marge Leasing Globale (sur 5 ans)** : (`Module.monthlyLeasing` × 60 mois) − `Module.internalHardwareCost`.
+3. **Revenus Commission (Recurring)** : `Total_BTC_Mined` × `BTC_Price` × 10 %, sur 5 ans.
+4. **Profit Total SolarBlock par projet** : Somme des 3 marges sur 5 ans (LTV client).
+
+---
+
+## Étape 3 : Interface Utilisateur (Dashboard Admin)
+
+Composant **Vue Interne / Renta SolarBlock** visible via un **toggle « Renta Client / Renta SolarBlock »**. Affiche :
+
+* **Cashflow Immédiat (J-0)** : La marge d'installation.
+* **MRR (Revenu Récurrent Mensuel)** : (Marge Leasing Mensuelle) + (Commission Minage Mensuelle).
+* **Lifetime Value (LTV) Client** : Le profit total SolarBlock sur ce client en 5 ans.
+* **Graphique en barres empilées « Sources de Profit »** : Installation | Marge Leasing | Commission Minage (10 %).
+
+---
+
+## Étape 4 : Stress Test (Scénario du pire)
+
+Section d'analyse de risque dans le panneau Admin :
+
+* **Revenus Fixes (Sécurisés)** : Marge Installation + Marge Leasing.
+* **Revenus Variables (Risqués)** : Commission Minage.
+
+Message affiché : *« Même si le Bitcoin tombe à 0 €, SolarBlock sécurise X € de marge sur ce projet via l'installation et le leasing. »*
+
+---
+
+### Résumé des formules (vérification)
+
+Exemple **Module 3 (Centre Commercial)** :
+
+1. **Marge Install :** 15 600 € (facturé) − 12 500 € (coût) = **+3 100 €** (cash immédiat).
+2. **Marge Leasing :** (953 € × 60) − 48 000 € = **+9 180 €** (sur 5 ans).
+3. **Commission Minage (BTC à 70 k€)** : ~3 650 €/an × 5 = **+18 250 €**.
+
+**Total Profit SolarBlock sur 5 ans (Module 3) :** 3 100 + 9 180 + 18 250 = **30 530 €** de marge nette par projet (LTV). C'est ce chiffre qui intéresse les investisseurs.

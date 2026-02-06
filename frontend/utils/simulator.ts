@@ -24,6 +24,9 @@ export type ModuleConfig = {
   monthlyLeasing: number;
   maintenanceRate: number;
   residualValue5Years: number;
+  /** Coûts internes SolarBlock (non visibles client) */
+  internalHardwareCost: number;
+  internalInstallCost: number;
 };
 
 export type ScenarioConfig = {
@@ -62,6 +65,8 @@ export const MODULES: ModuleConfig[] = [
     monthlyLeasing: 104,
     maintenanceRate: 0.25,
     residualValue5Years: 1_008,
+    internalHardwareCost: 5_000,
+    internalInstallCost: 4_300,
   },
   {
     id: "module_2",
@@ -73,6 +78,8 @@ export const MODULES: ModuleConfig[] = [
     monthlyLeasing: 468,
     maintenanceRate: 0.25,
     residualValue5Years: 4_538,
+    internalHardwareCost: 22_000,
+    internalInstallCost: 7_600,
   },
   {
     id: "module_3",
@@ -84,6 +91,8 @@ export const MODULES: ModuleConfig[] = [
     monthlyLeasing: 953,
     maintenanceRate: 0.25,
     residualValue5Years: 9_244,
+    internalHardwareCost: 48_000,
+    internalInstallCost: 12_500,
   },
   {
     id: "module_4",
@@ -95,6 +104,8 @@ export const MODULES: ModuleConfig[] = [
     monthlyLeasing: 1_420,
     maintenanceRate: 0.25,
     residualValue5Years: 13_780,
+    internalHardwareCost: 72_000,
+    internalInstallCost: 16_800,
   },
   {
     id: "module_5",
@@ -106,6 +117,8 @@ export const MODULES: ModuleConfig[] = [
     monthlyLeasing: 2_380,
     maintenanceRate: 0.25,
     residualValue5Years: 23_000,
+    internalHardwareCost: 120_000,
+    internalInstallCost: 25_600,
   },
 ];
 
@@ -298,5 +311,59 @@ export function runSimulation(params: {
     edfRate,
     solarBlockMargin,
   });
+}
+
+// --- Rentabilité interne SolarBlock (vue admin) ---
+
+export type SolarBlockProfitability = {
+  /** Marge à l'installation (cash immédiat) */
+  marginInstall: number;
+  /** Marge sur le leasing sur 5 ans (loyers perçus - coût hardware) */
+  marginLeasing5y: number;
+  /** Commission minage (10 %) sur 5 ans */
+  commissionMining5y: number;
+  /** Profit total SolarBlock sur 5 ans (LTV client) */
+  profitTotal5y: number;
+  /** Revenu récurrent mensuel : marge leasing mensuelle + commission minage mensuelle */
+  mrr: number;
+  /** Revenus fixes (sécurisés) : marge install + marge leasing 5 ans */
+  revenusFixes: number;
+  /** Revenus variables (risqués) : commission minage 5 ans */
+  revenusVariables: number;
+};
+
+/**
+ * Calcule la rentabilité interne SolarBlock pour un projet (module + résultat client).
+ * Utilisée pour la vue Admin / Renta SolarBlock.
+ */
+export function calculateSolarBlockProfitability(
+  module: ModuleConfig,
+  result: SimulationResult,
+  solarBlockMargin: number = SOLAR_BLOCK_MARGIN,
+): SolarBlockProfitability {
+  const marginInstall = module.costInstallation - module.internalInstallCost;
+  const leasingRevenue5y = module.monthlyLeasing * 60;
+  const marginLeasing5y = leasingRevenue5y - module.internalHardwareCost;
+  const commissionAnnual = result.revenueBtcBrut * solarBlockMargin;
+  const commissionMining5y = commissionAnnual * 5;
+
+  const profitTotal5y = marginInstall + marginLeasing5y + commissionMining5y;
+
+  const marginLeasingMonthly = module.monthlyLeasing - module.internalHardwareCost / 60;
+  const commissionMonthly = commissionAnnual / 12;
+  const mrr = marginLeasingMonthly + commissionMonthly;
+
+  const revenusFixes = marginInstall + marginLeasing5y;
+  const revenusVariables = commissionMining5y;
+
+  return {
+    marginInstall,
+    marginLeasing5y,
+    commissionMining5y,
+    profitTotal5y,
+    mrr,
+    revenusFixes,
+    revenusVariables,
+  };
 }
 

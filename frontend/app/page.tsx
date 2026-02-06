@@ -14,6 +14,7 @@ import {
   YAxis,
 } from "recharts";
 import {
+  calculateSolarBlockProfitability,
   DEFAULT_BTC_PRICE,
   DEFAULT_ASIC_EFFICIENCY,
   DEFAULT_DIFFICULTY,
@@ -80,6 +81,7 @@ export default function Home() {
   const [margin, setMargin] =
     useState<number>(SOLAR_BLOCK_MARGIN * 100);
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const [viewMode, setViewMode] = useState<"client" | "solarblock">("client");
 
   const result = useMemo(
     () =>
@@ -168,6 +170,23 @@ export default function Home() {
 
     return rows;
   }, [result, selectedModule]);
+
+  const sbProfit = useMemo(() => {
+    if (!result || !selectedModule) return null;
+    return calculateSolarBlockProfitability(selectedModule, result, margin / 100);
+  }, [result, selectedModule, margin]);
+
+  const sbStackedBarData =
+    sbProfit && sbProfit.profitTotal5y > 0
+      ? [
+          {
+            name: "Profit SolarBlock (5 ans)",
+            Installation: Math.round(sbProfit.marginInstall),
+            "Marge Leasing": Math.round(sbProfit.marginLeasing5y),
+            "Commission Minage": Math.round(sbProfit.commissionMining5y),
+          },
+        ]
+      : [];
 
   // Tableau récap 100 % : lignes Libellé / Valeur (paramètres + scénario + module + KPIs)
   const recapRows = useMemo(() => {
@@ -511,12 +530,40 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
-              Simulation en temps réel – ajustez les paramètres
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+                Simulation en temps réel
+              </div>
+              <div className="flex rounded-full border border-slate-700 bg-slate-900/80 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setViewMode("client")}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                    viewMode === "client"
+                      ? "bg-slate-700 text-slate-100"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  Renta Client
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode("solarblock")}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                    viewMode === "solarblock"
+                      ? "bg-amber-600/80 text-white"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  Renta SolarBlock
+                </button>
+              </div>
             </div>
           </div>
 
+          {viewMode === "client" && (
+          <>
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
               <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-400">
@@ -785,6 +832,109 @@ export default function Home() {
               </>
             )}
           </div>
+          </>
+          )}
+
+          {viewMode === "solarblock" && (
+            <div className="mt-6 space-y-6">
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-2 text-xs text-amber-200/90">
+                Vue interne SolarBlock — marges et rentabilité par projet (données non visibles client).
+              </div>
+
+              {!sbProfit ? (
+                <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-8 text-center text-sm text-slate-500">
+                  Choisissez un scénario et un module pour afficher la rentabilité SolarBlock sur ce projet.
+                </div>
+              ) : (
+                <>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                        Cashflow immédiat (J-0)
+                      </p>
+                      <p className="mt-3 text-2xl font-semibold text-amber-400">
+                        {formatCurrency(sbProfit.marginInstall)}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Marge à l&apos;installation (facturé client − coût interne).
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                        MRR (revenu récurrent mensuel)
+                      </p>
+                      <p className="mt-3 text-2xl font-semibold text-slate-100">
+                        {formatCurrency(sbProfit.mrr)}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Marge leasing mensuelle + commission minage mensuelle.
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                        LTV client (5 ans)
+                      </p>
+                      <p className="mt-3 text-2xl font-semibold text-emerald-400">
+                        {formatCurrency(sbProfit.profitTotal5y)}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Profit total SolarBlock sur ce projet sur 5 ans.
+                      </p>
+                    </div>
+                  </div>
+
+                  {sbStackedBarData.length > 0 && (
+                    <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
+                      <p className="mb-3 text-sm font-medium text-slate-100">
+                        Sources de profit (5 ans)
+                      </p>
+                      <div className="h-56">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={sbStackedBarData}
+                            layout="vertical"
+                            margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
+                            <XAxis type="number" stroke="#9ca3af" tickFormatter={(v) => `${Math.round(v / 1_000)}k €`} />
+                            <YAxis type="category" dataKey="name" width={140} stroke="#9ca3af" />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "#020617",
+                                borderColor: "#1f2937",
+                                borderRadius: 8,
+                                fontSize: 12,
+                              }}
+                              formatter={(value: number) => formatCurrency(Number(value))}
+                            />
+                            <Legend />
+                            <Bar dataKey="Installation" stackId="a" fill="#f59e0b" radius={0} />
+                            <Bar dataKey="Marge Leasing" stackId="a" fill="#22c55e" radius={0} />
+                            <Bar dataKey="Commission Minage" stackId="a" fill="#38bdf8" radius={[0, 4, 4, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                      Stress test (scénario du pire)
+                    </p>
+                    <p className="mt-2 text-sm text-slate-200">
+                      <strong className="text-amber-300">Revenus fixes (sécurisés)</strong> : {formatCurrency(sbProfit.revenusFixes)} — Installation + marge leasing.
+                    </p>
+                    <p className="mt-1 text-sm text-slate-200">
+                      <strong className="text-sky-300">Revenus variables (risqués)</strong> : {formatCurrency(sbProfit.revenusVariables)} — Commission minage (dépend du cours BTC).
+                    </p>
+                    <p className="mt-3 rounded-lg bg-slate-800/80 px-3 py-2 text-xs text-slate-300">
+                      Même si le Bitcoin tombe à 0 €, SolarBlock sécurise <strong className="text-white">{formatCurrency(sbProfit.revenusFixes)}</strong> de marge sur ce projet via l&apos;installation et le leasing.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           <p className="mt-6 text-[11px] text-slate-500">
             Les résultats fournis par ce simulateur sont indicatifs et dépendent
