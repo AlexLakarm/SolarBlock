@@ -351,54 +351,50 @@ export default function LandingPage() {
         </div>
       </Section>
 
-      {/* Pédagogie Bitcoin - Glassmorphism + grille icônes */}
-      <Section className="px-4 py-24 md:py-36">
-        <div className="mx-auto max-w-4xl">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.08] p-8 backdrop-blur-md md:p-12">
-            <AnimatedText>
-              <h2 className="text-center text-4xl font-medium tracking-tight text-slate-200 md:text-5xl">
-                Le Bitcoin : Une réserve de valeur numérique
-              </h2>
-            </AnimatedText>
-            <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-3">
-              <AnimatedText>
-                <div className="flex flex-col items-center text-center">
-                  <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-500/10 text-2xl shadow-[0_0_24px_rgba(251,191,36,0.15)]">🛡️</span>
-                  <p className="mt-4 font-semibold text-amber-300">Solide</p>
-                  <p className="mt-1 text-sm text-slate-400">
-                    Impossible à contrefaire.
-                  </p>
-                </div>
-              </AnimatedText>
-              <AnimatedText>
-                <div className="flex flex-col items-center text-center">
-                  <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-500/10 text-2xl shadow-[0_0_24px_rgba(251,191,36,0.15)]">🌍</span>
-                  <p className="mt-4 font-semibold text-amber-300">Décentralisé</p>
-                  <p className="mt-1 text-sm text-slate-400">
-                    Échange de pair-à-pair, sans intermédiaire.
-                  </p>
-                </div>
-              </AnimatedText>
-              <AnimatedText>
-                <div className="flex flex-col items-center text-center">
-                  <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-500/10 text-2xl shadow-[0_0_24px_rgba(251,191,36,0.15)]">💎</span>
-                  <p className="mt-4 font-semibold text-amber-300">Rare</p>
-                  <p className="mt-1 text-sm text-slate-400">
-                    Quantité fixée à 21 millions d&apos;unités. Jamais plus.
-                  </p>
-                </div>
-              </AnimatedText>
-            </div>
-            <AnimatedText>
-              <p className="mt-12 text-center text-slate-300">
-                Contrairement à l&apos;or, il s&apos;échange instantanément. Vos
-                excédents solaires sont transformés en un actif financier liquide
-                et auditable.
+      {/* Pédagogie Bitcoin - Glassmorphism + grille (affichage statique, sans animation) */}
+      <section className="px-4 py-24 md:py-36">
+        <div className="mx-auto max-w-5xl rounded-2xl border border-white/10 bg-white/[0.08] p-8 backdrop-blur-md md:p-12">
+          <h2 className="text-center text-4xl font-medium tracking-tight text-slate-200 md:text-5xl">
+            Le Bitcoin : Une réserve de valeur numérique
+          </h2>
+          <p className="mt-6 text-center text-slate-300 md:text-lg">
+            Qu&apos;est-ce que le Bitcoin ? Définition selon Yves Choueifaty :
+          </p>
+          <div className="mt-10 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="flex flex-col rounded-xl border border-white/10 bg-white/[0.06] p-6 backdrop-blur-sm">
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-500/10 text-2xl shadow-[0_0_24px_rgba(251,191,36,0.15)]">💳</span>
+              <p className="mt-4 text-lg font-semibold text-amber-300 md:text-xl">Actif numérique</p>
+              <p className="mt-2 text-base leading-relaxed text-slate-400">
+                Comme l&apos;essentiel des euros en circulation.
               </p>
-            </AnimatedText>
+            </div>
+            <div className="flex flex-col rounded-xl border border-white/10 bg-white/[0.06] p-6 backdrop-blur-sm">
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-500/10 text-2xl shadow-[0_0_24px_rgba(251,191,36,0.15)]">🛡️</span>
+              <p className="mt-4 text-lg font-semibold text-amber-300 md:text-xl">Solide</p>
+              <p className="mt-2 text-base leading-relaxed text-slate-400">
+                Il est impossible de produire de faux Bitcoin.
+              </p>
+            </div>
+            <div className="flex flex-col rounded-xl border border-white/10 bg-white/[0.06] p-6 backdrop-blur-sm">
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-500/10 text-2xl shadow-[0_0_24px_rgba(251,191,36,0.15)]">🌍</span>
+              <p className="mt-4 text-lg font-semibold text-amber-300 md:text-xl">Décentralisé</p>
+              <p className="mt-2 text-base leading-relaxed text-slate-400">
+                Il s&apos;échange de pair-à-pair, sans intermédiaire. Personne n&apos;a le monopole de l&apos;émission : la gouvernance de Bitcoin est décentralisée, via un algorithme présent dans des nœuds répartis à travers le monde.
+              </p>
+            </div>
+            <div className="flex flex-col rounded-xl border border-white/10 bg-white/[0.06] p-6 backdrop-blur-sm">
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-400/20 bg-amber-500/10 text-2xl shadow-[0_0_24px_rgba(251,191,36,0.15)]">💎</span>
+              <p className="mt-4 text-lg font-semibold text-amber-300 md:text-xl">Rare</p>
+              <p className="mt-2 text-base leading-relaxed text-slate-400">
+                La quantité de Bitcoin est limitée et fixe à <span className="text-amber-400 font-medium">21 millions d&apos;unités</span>. Il n&apos;y en aura jamais plus.
+              </p>
+            </div>
           </div>
+          <p className="mt-12 text-center text-lg leading-relaxed text-slate-300 md:text-xl">
+            Le Bitcoin transforme l&apos;énergie solaire inutilisée en un <strong className="font-semibold text-slate-200">actif financier rare et innovant</strong>. Contrairement à l&apos;or il s&apos;échange facilement, ses <strong className="font-semibold text-slate-200">réserves sont auditables</strong> et <strong className="font-semibold text-slate-200 underline decoration-amber-400/80 underline-offset-2">sa quantité ne changera jamais</strong>.
+          </p>
         </div>
-      </Section>
+      </section>
 
       {/* Business model */}
       <Section className="px-4 py-24 md:py-36">
