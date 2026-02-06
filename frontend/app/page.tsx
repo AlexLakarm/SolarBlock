@@ -68,6 +68,21 @@ function AnimatedText({
   );
 }
 
+const chartContainerClass =
+  "mt-12 min-h-[16rem] w-full rounded-2xl border border-white/10 bg-white/[0.08] p-4 backdrop-blur-md md:min-h-[18rem]";
+
+function ChartWithScrollAnimation({ children }: { children: React.ReactNode }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, amount: 0.15 });
+  return (
+    <div ref={ref}>
+      <div className={inView ? `landing-chart-draw ${chartContainerClass}` : chartContainerClass}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function LandingPage() {
   return (
     <div className="relative min-h-screen text-slate-200">
@@ -194,7 +209,7 @@ export default function LandingPage() {
             </p>
           </AnimatedText>
           <AnimatedText>
-            <div className="landing-chart-draw mt-12 min-h-[16rem] w-full rounded-2xl border border-white/10 bg-white/[0.08] p-4 backdrop-blur-md md:min-h-[18rem]">
+            <ChartWithScrollAnimation>
               <ResponsiveContainer width="100%" height={280}>
                 <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <defs>
@@ -243,10 +258,10 @@ export default function LandingPage() {
                   <Legend wrapperStyle={{ fontSize: "12px" }} />
                 </ComposedChart>
               </ResponsiveContainer>
-              <p className="mt-2 text-center text-xs text-red-400/90">
+              <p className="mt-2 text-center text-sm text-red-400/90 md:text-base">
                 Zone rouge = énergie bradée à EDF (entre les deux courbes)
               </p>
-            </div>
+            </ChartWithScrollAnimation>
           </AnimatedText>
         </div>
       </Section>
@@ -267,7 +282,7 @@ export default function LandingPage() {
             </p>
           </AnimatedText>
           <AnimatedText>
-            <div className="landing-chart-draw mt-12 min-h-[16rem] w-full rounded-2xl border border-white/10 bg-white/[0.08] p-4 backdrop-blur-md md:min-h-[18rem]">
+            <ChartWithScrollAnimation>
               <ResponsiveContainer width="100%" height={280}>
                 <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                   <defs>
@@ -314,10 +329,10 @@ export default function LandingPage() {
                   <Legend wrapperStyle={{ fontSize: "12px" }} />
                 </ComposedChart>
               </ResponsiveContainer>
-              <p className="mt-2 text-center text-xs text-amber-400/90">
+              <p className="mt-2 text-center text-sm text-amber-400/90 md:text-base">
                 Zone dorée = surplus transformé en actif (Bitcoin), entre les deux courbes
               </p>
-            </div>
+            </ChartWithScrollAnimation>
           </AnimatedText>
           <div className="mt-14 grid gap-6 md:grid-cols-3">
             <AnimatedText>
