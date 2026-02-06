@@ -24,3 +24,86 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Landing: animation de dessin progressif des courbes (stroke-dasharray) */
+.landing-chart-draw .recharts-line-curve,
+.landing-chart-draw .recharts-curve.recharts-line-curve {
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+  animation: landing-chart-draw 2.2s ease-out forwards;
+}
+.landing-chart-draw .recharts-area,
+.landing-chart-draw [class*="recharts-area"] {
+  animation: landing-chart-fade 1.8s ease-out 0.3s both;
+}
+@keyframes landing-chart-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes landing-chart-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Landing: fond avec blobs et profondeur */
+.landing-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background: #050810;
+}
+.landing-bg-mesh {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 20%, rgba(6, 78, 59, 0.25) 0%, transparent 50%),
+    radial-gradient(ellipse 70% 50% at 80% 80%, rgba(120, 53, 15, 0.2) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 50% 50%, rgba(30, 41, 59, 0.15) 0%, transparent 60%);
+}
+.landing-bg-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.5;
+  animation: landing-blob-float 25s ease-in-out infinite;
+}
+.landing-bg-blob-1 {
+  width: 60vw;
+  height: 60vw;
+  top: -20%;
+  left: -10%;
+  background: rgba(6, 78, 59, 0.4);
+  animation-delay: 0s;
+}
+.landing-bg-blob-2 {
+  width: 50vw;
+  height: 50vw;
+  bottom: -15%;
+  right: -10%;
+  background: rgba(120, 53, 15, 0.35);
+  animation-delay: -8s;
+}
+@keyframes landing-blob-float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(3%, -2%) scale(1.05);
+  }
+  66% {
+    transform: translate(-2%, 2%) scale(0.98);
+  }
+}
+.landing-bg-noise {
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
