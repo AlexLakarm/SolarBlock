@@ -244,3 +244,103 @@ Exemple **Module 3 (Centre Commercial)** :
 3. **Commission Minage (BTC à 70 k€)** : ~3 650 €/an × 5 = **+18 250 €**.
 
 **Total Profit SolarBlock sur 5 ans (Module 3) :** 3 100 + 9 180 + 18 250 = **30 530 €** de marge nette par projet (LTV). C'est ce chiffre qui intéresse les investisseurs.
+
+---
+
+# 🎨 Brief Design & Code : Landing Page "SolarBlock B2B"
+
+**CONTEXTE PROJET :**  
+Page d'accueil de **SolarBlock**.  
+**Cible :** B2B (Grandes entreprises, Logistique, GSA) qui ont l'obligation légale d'installer des ombrières photovoltaïques (Loi APER).  
+**Objectif :** Rassurer et éduquer. Ton **Finance/Infrastructure**, pas "Crypto/Tech". On ne parle pas de "jouer au mineur", mais de **"transformer une contrainte réglementaire en opportunité financière"**.
+
+---
+
+## Design System
+
+* **Ambiance :** Fintech Premium. Fond sombre (Dark navy ou Noir profond).
+* **Palette :**
+  * Primaire : Vert "Énergie" (RSE/Solaire).
+  * Secondaire : Or "Gold" (Bitcoin/Actif financier), touches subtiles.
+* **Typographie :** Sérieuse et moderne (ex. Inter ou Manrope).
+* **Tech :** Next.js 14, Tailwind CSS, `framer-motion` (animations fluides), `recharts` (graphiques).
+
+---
+
+## Structure de la page (section par section)
+
+### 1. HERO SECTION : La Promesse
+
+* **H1 :** "Transformer l'énergie solaire inutilisée en Or Numérique."
+* **Sous-titre :** "Votre parking devient une centrale de production d'actifs. Rentabilisez vos ombrières photovoltaïques obligatoires 2 à 3 fois plus vite qu'avec la revente EDF."
+* **CTA principal :** "Calculer mon potentiel de gain" → lien vers le simulateur.
+* **Visuel de fond :** Animation abstraite et lente : rayons de lumière (solaire) qui se cristallisent en blocs (Bitcoin).
+
+### 2. LE DÉCLENCHEUR : La Loi APER (Context)
+
+* **Layout :** Timeline ou blocs qui apparaissent au scroll.
+* **Titre :** "Quand Contrainte Réglementaire rime avec Opportunité."
+* **Texte :** "La Loi APER vous oblige à équiper vos parkings d'ombrières."
+* **Échéances (affichage propre) :**
+  * **Juillet 2026 :** Parkings &gt; 10 000 m².
+  * **Juillet 2028 :** Parkings &gt; 1 500 m².
+* **Message clé :** "Des milliers d'entreprises vont devoir investir. Ne faites pas de cet investissement une charge, faites-en un levier de croissance."
+
+### 3. LE PROBLÈME : L'intermittence (Graphique Animé)
+
+* **Titre :** "Le paradoxe du surplus énergétique."
+* **Composant graphique (crucial) :** Représentation simplifiée et stylisée :
+  * Courbe de **production solaire** (cloche).
+  * Courbe de **consommation bâtiment** (irrégulière).
+  * Zone où *Production &gt; Consommation* : s'allume en **Rouge** ("Énergie bradée à EDF").
+* **Texte :** "L'énergie solaire est intermittente et décalée de votre consommation. Ce surplus est aujourd'hui revendu au réseau pour un rendement financier extrêmement faible."
+
+### 4. LA SOLUTION SOLARBLOCK : L'Optimisation
+
+* **Titre :** "L'Intelligence Artificielle au service de votre rentabilité."
+* **Animation du graphique (suite) :** Reprendre le graphique précédent ; la zone "Rouge" devient **Dorée** (Surplus = Or).
+* **Texte :** "Notre algorithme propriétaire active nos unités de calcul (miners) uniquement lorsque l'énergie verte n'est pas auto-consommée."
+* **Points forts (cards) :**
+  1. **Rentabilité :** "Monétisez chaque kWh excédentaire 2 à 3x plus cher que le tarif d'achat."
+  2. **Image :** "Validez votre stratégie RSE : Énergie Renouvelable + Innovation Blockchain."
+  3. **Sérénité :** "SolarBlock gère tout : installation, gestion automatisée et maintenance."
+
+### 5. PÉDAGOGIE : Comprendre l'Actif (Bitcoin)
+
+* **Design :** Section plus lumineuse ou fond dégradé Or subtil.
+* **Titre :** "Le Bitcoin : Une réserve de valeur numérique."
+* **Contenu (icônes minimalistes) :**
+  * 🛡️ **Solide :** Impossible à contrefaire.
+  * 🌍 **Décentralisé :** Échange de pair-à-pair, sans intermédiaire.
+  * 💎 **Rare :** Quantité fixée à 21 millions d'unités. Jamais plus.
+* **Conclusion :** "Contrairement à l'or, il s'échange instantanément. Vos excédents solaires sont transformés en un actif financier liquide et auditable."
+
+### 6. BUSINESS MODEL & INTÉGRATION
+
+* **Titre :** "Un modèle transparent."
+* **Layout :** 2 colonnes.
+* **Pour Vous (Client) :** Vous êtes propriétaire du matériel. Vous recevez les revenus (Euro ou BTC) chaque semaine.
+* **Pour Nous (SolarBlock) :** Nous facturons l'installation (CAPEX) et prélevons une commission de performance sur les BTC générés.
+* **Note :** Mentionner l'algorithme de modulation automatique.
+
+### 7. FOOTER & CTA FINAL
+
+* **Texte :** "Rejoignez le tsunami de l'installation PV en entreprise."
+* **Bouton :** "Accéder au Simulateur de Rentabilité" → lien vers le simulateur.
+
+---
+
+## Instructions techniques
+
+1. **framer-motion :** Textes qui montent au scroll (`y: 20 → 0`, `opacity: 0 → 1`).
+2. **Graphique (sections 3 et 4) :** Recharts ou SVG animés. Élément visuel central : "Surplus = Perte" vs "Surplus = Or".
+3. **Typographie :** Titres percutants et élégants.
+
+### Visualisation du graphique (sections 3 & 4)
+
+À soigner en priorité — c'est là que le déclic se fait pour le client.
+
+1. **Courbe Solaire** (Jaune) : monte et descend (cloche).
+2. **Courbe Conso** (Blanche) : en dessous, irrégulière.
+3. **Espace entre les deux (surplus)** : se remplit d'abord en **Gris/Rouge** = Perte EDF.
+4. Au scroll (section 4), cet espace se transforme en **Or brillant** avec texture animée = Gain SolarBlock.

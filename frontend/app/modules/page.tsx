@@ -22,7 +22,7 @@ export default function ModulesPage() {
           </div>
 
           <Link
-            href="/"
+            href="/simulateur"
             className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-900/80 px-4 py-2 text-xs font-medium text-slate-100 transition hover:border-emerald-400 hover:bg-slate-900"
           >
             Retour au simulateur
@@ -31,7 +31,7 @@ export default function ModulesPage() {
 
         <main className="grid gap-4 md:grid-cols-2">
           {MODULES.map((module) => {
-            const href = `/?module=${module.id}`;
+            const href = `/simulateur?module=${module.id}`;
 
             return (
               <article

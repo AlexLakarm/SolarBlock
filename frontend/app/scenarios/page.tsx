@@ -22,7 +22,7 @@ export default function ScenariosPage() {
           </div>
 
           <Link
-            href="/"
+            href="/simulateur"
             className="inline-flex items-center justify-center rounded-full border border-slate-700 bg-slate-900/80 px-4 py-2 text-xs font-medium text-slate-100 transition hover:border-emerald-400 hover:bg-slate-900"
           >
             Retour au simulateur
@@ -35,7 +35,7 @@ export default function ScenariosPage() {
               (module) => module.id === scenario.recommendedModuleId,
             );
 
-            const href = `/?scenario=${scenario.id}${
+            const href = `/simulateur?scenario=${scenario.id}${
               recommendedModule ? `&module=${recommendedModule.id}` : ""
             }`;
 

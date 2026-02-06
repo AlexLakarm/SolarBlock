@@ -1,948 +1,456 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRef } from "react";
+import { motion, useInView } from "framer-motion";
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
+  Area,
+  ComposedChart,
   Legend,
+  Line,
   ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  calculateSolarBlockProfitability,
-  DEFAULT_BTC_PRICE,
-  DEFAULT_ASIC_EFFICIENCY,
-  DEFAULT_DIFFICULTY,
-  EDF_OA_RATE,
-  MODULES,
-  SCENARIOS,
-  SOLAR_BLOCK_MARGIN,
-  SOLAR_RESOURCE,
-  runSimulation,
-} from "@/utils/simulator";
 
-const formatCurrency = (value: number | null | undefined) => {
-  if (!value || !Number.isFinite(value)) return "—";
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 0,
-  }).format(value);
+const fadeUp = {
+  initial: { opacity: 0, y: 24 },
+  animate: { opacity: 1, y: 0 },
 };
 
-const formatYears = (value: number | null | undefined) => {
-  if (!value || !Number.isFinite(value)) return "—";
-  return value.toFixed(1);
-};
+const chartData = [
+  { t: "6h", prod: 15, conso: 45 },
+  { t: "8h", prod: 45, conso: 50 },
+  { t: "10h", prod: 80, conso: 52 },
+  { t: "12h", prod: 100, conso: 48 },
+  { t: "14h", prod: 95, conso: 55 },
+  { t: "16h", prod: 70, conso: 50 },
+  { t: "18h", prod: 35, conso: 42 },
+  { t: "20h", prod: 10, conso: 30 },
+].map((d) => ({
+  ...d,
+  surplus: Math.max(0, d.prod - d.conso),
+}));
 
-/** Valeur numérique pour export CSV/Sheets (sans symbole €, séparateur décimal .) */
-const formatNumberForExport = (value: number | null | undefined): string => {
-  if (value == null || !Number.isFinite(value)) return "";
-  return String(value);
-};
-
-/** Infobulle au survol pour expliquer un libellé */
-function InfoBulle({ children, className }: { children: React.ReactNode; className?: string }) {
+function Section({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: "-80px" });
   return (
-    <span className={`group relative inline-flex cursor-help ${className ?? ""}`}>
-      <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-slate-500 text-[10px] text-slate-400 transition group-hover:border-slate-400 group-hover:text-slate-300">
-        ?
-      </span>
-      <span className="pointer-events-none absolute left-0 bottom-full z-20 mb-1 hidden max-w-[260px] rounded-lg border border-slate-600 bg-slate-800 px-2.5 py-2 text-[11px] leading-relaxed text-slate-200 shadow-xl group-hover:block">
-        {children}
-      </span>
-    </span>
+    <motion.section
+      ref={ref}
+      initial="initial"
+      animate={inView ? "animate" : "initial"}
+      variants={{ animate: { transition: { staggerChildren: 0.08 } } }}
+      className={className}
+    >
+      {children}
+    </motion.section>
   );
 }
 
-export default function Home() {
-  const searchParams = useSearchParams();
-
-  const initialScenarioId =
-    searchParams.get("scenario") ?? SCENARIOS[0]?.id ?? "";
-  const initialModuleId =
-    searchParams.get("module") ?? MODULES[0]?.id ?? "";
-
-  const [btcPrice, setBtcPrice] = useState<number>(DEFAULT_BTC_PRICE);
-  const [difficulty, setDifficulty] = useState<number>(DEFAULT_DIFFICULTY);
-  const [edfRate, setEdfRate] = useState<number>(EDF_OA_RATE);
-  const [scenarioId, setScenarioId] = useState<string>(initialScenarioId);
-  const [moduleId, setModuleId] = useState<string>(initialModuleId);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [asicEfficiency, setAsicEfficiency] =
-    useState<number>(DEFAULT_ASIC_EFFICIENCY);
-  const [solarResource, setSolarResource] =
-    useState<number>(SOLAR_RESOURCE);
-  const [margin, setMargin] =
-    useState<number>(SOLAR_BLOCK_MARGIN * 100);
-  const [copyFeedback, setCopyFeedback] = useState(false);
-  const [viewMode, setViewMode] = useState<"client" | "solarblock">("client");
-
-  const result = useMemo(
-    () =>
-      runSimulation({
-        scenarioId,
-        moduleId,
-        btcPrice,
-        difficultyMTh: difficulty,
-        edfRate,
-        asicEfficiencyJPerTh: asicEfficiency,
-        solarResource,
-        solarBlockMargin: margin / 100,
-      }),
-    [btcPrice, difficulty, edfRate, scenarioId, moduleId, asicEfficiency, solarResource, margin],
-  );
-
-  const roiSafe = result?.roiYears ?? null;
-  const annualAdvantageSafe = result?.realAnnualAdvantage ?? null;
-  const gain5YearsSafe =
-    result && Number.isFinite(result.realAnnualAdvantage)
-      ? result.realAnnualAdvantage * 5
-      : null;
-
-  const roiBadgeColor =
-    roiSafe && Number.isFinite(roiSafe)
-      ? roiSafe < 2
-        ? "text-emerald-400"
-        : roiSafe > 5
-          ? "text-amber-300"
-          : "text-slate-100"
-      : "text-slate-500";
-
-  const selectedModule = MODULES.find((m) => m.id === moduleId);
-  const selectedScenario = SCENARIOS.find((s) => s.id === scenarioId);
-
-  // Données pour le graphique barres (Revenu minage net vs EDF)
-  const comparisonChartData =
-    result && Number.isFinite(result.revenueBtcNet) && Number.isFinite(result.revenueEdf)
-      ? [
-          {
-            name: "Annuel",
-            "Minage net": Math.max(0, Math.round(result.revenueBtcNet)),
-            "EDF OA": Math.max(0, Math.round(result.revenueEdf)),
-          },
-        ]
-      : [];
-
-  // Tableau 5 ans
-  const yearlyRows = useMemo(() => {
-    if (!result || !selectedModule) return [];
-
-    const rows: {
-      year: number;
-      initialCost: number;
-      leasing: number;
-      miningNet: number;
-      edf: number;
-      cashflow: number;
-      cumulative: number;
-    }[] = [];
-
-    let cumulative = 0;
-
-    for (let year = 1; year <= 5; year++) {
-      const leasingAnnual = selectedModule.monthlyLeasing * 12;
-      const miningNet = result.revenueBtcNet;
-      const edf = result.revenueEdf;
-      const advantage = result.realAnnualAdvantage;
-
-      const initialCost = year === 1 ? selectedModule.costInstallation : 0;
-      const cashflow =
-        year === 1 ? advantage - selectedModule.costInstallation : advantage;
-
-      cumulative += cashflow;
-
-      rows.push({
-        year,
-        initialCost,
-        leasing: leasingAnnual,
-        miningNet,
-        edf,
-        cashflow,
-        cumulative,
-      });
-    }
-
-    return rows;
-  }, [result, selectedModule]);
-
-  const sbProfit = useMemo(() => {
-    if (!result || !selectedModule) return null;
-    return calculateSolarBlockProfitability(selectedModule, result, margin / 100);
-  }, [result, selectedModule, margin]);
-
-  const sbStackedBarData =
-    sbProfit && sbProfit.profitTotal5y > 0
-      ? [
-          {
-            name: "Profit SolarBlock (5 ans)",
-            Installation: Math.round(sbProfit.marginInstall),
-            "Marge Leasing": Math.round(sbProfit.marginLeasing5y),
-            "Commission Minage": Math.round(sbProfit.commissionMining5y),
-          },
-        ]
-      : [];
-
-  // Tableau récap 100 % : lignes Libellé / Valeur (paramètres + scénario + module + KPIs)
-  const recapRows = useMemo(() => {
-    const rows: { label: string; value: string }[] = [];
-    rows.push({ label: "Prix du BTC (€)", value: String(btcPrice) });
-    rows.push({ label: "Difficulté réseau (EH/s)", value: String(difficulty) });
-    rows.push({ label: "Tarif EDF OA (€/kWh)", value: String(edfRate) });
-    rows.push({ label: "Scénario", value: selectedScenario?.name ?? scenarioId });
-    rows.push({ label: "Module", value: selectedModule?.name ?? moduleId });
-    rows.push({ label: "Efficacité ASIC (J/TH)", value: String(asicEfficiency) });
-    rows.push({ label: "Gisement solaire (kWh/kWc/an)", value: String(solarResource) });
-    rows.push({ label: "Marge SolarBlock (%)", value: String(margin) });
-    if (selectedScenario) {
-      rows.push({ label: "— Scénario : Puissance installée (kWc)", value: String(selectedScenario.installedPowerKwc) });
-      rows.push({ label: "— Scénario : Gisement (kWh/kWc/an)", value: String(selectedScenario.solarYield) });
-      rows.push({ label: "— Scénario : Autoconsommation hiver (%)", value: String(selectedScenario.selfConsumptionWinter) });
-      rows.push({ label: "— Scénario : Autoconsommation été (%)", value: String(selectedScenario.selfConsumptionSummer) });
-      rows.push({ label: "— Scénario : Heures exploitation/jour", value: String(selectedScenario.exploitationHours) });
-    }
-    if (selectedModule) {
-      rows.push({ label: "— Module : Surplus cible (kW)", value: String(selectedModule.targetSurplusKw) });
-      rows.push({ label: "— Module : CAPEX installation (€)", value: String(selectedModule.costInstallation) });
-      rows.push({ label: "— Module : Leasing mensuel (€)", value: String(selectedModule.monthlyLeasing) });
-      rows.push({ label: "— Module : Valeur résiduelle 5 ans (€)", value: String(selectedModule.residualValue5Years) });
-    }
-    if (result) {
-      rows.push({ label: "Surplus annuel (kWh)", value: formatNumberForExport(result.surplusKwhAnnual) });
-      rows.push({ label: "BTC minés (annuel)", value: formatNumberForExport(result.btcMinedAnnual) });
-      rows.push({ label: "Revenu minage brut (€)", value: formatNumberForExport(result.revenueBtcBrut) });
-      rows.push({ label: "Revenu minage net (€)", value: formatNumberForExport(result.revenueBtcNet) });
-      rows.push({ label: "Revenu EDF OA (€)", value: formatNumberForExport(result.revenueEdf) });
-      rows.push({ label: "Gain vs EDF net (€)", value: formatNumberForExport(result.gainVsEdfNet) });
-      rows.push({ label: "Coût leasing annuel (€)", value: formatNumberForExport(result.leasingAnnualCost) });
-      rows.push({ label: "Avantage annuel réel (€)", value: formatNumberForExport(result.realAnnualAdvantage) });
-      rows.push({ label: "ROI (années)", value: formatYears(result.roiYears) });
-      rows.push({ label: "Cashflow année 1 (€)", value: formatNumberForExport(result.cashflowYear1) });
-      rows.push({ label: "Gain cumulé 5 ans (€)", value: formatNumberForExport(gain5YearsSafe) });
-    }
-    return rows;
-  }, [btcPrice, difficulty, edfRate, scenarioId, moduleId, asicEfficiency, solarResource, margin, selectedScenario, selectedModule, result, gain5YearsSafe]);
-
-  const buildCsvContent = (): string => {
-    const sep = ";";
-    const lines: string[] = ["Section;Libellé;Valeur"];
-    recapRows.forEach((r) => lines.push(`Récap;${r.label.replace(/;/g, ",")};${r.value.replace(/;/g, ",")}`));
-    lines.push("");
-    lines.push("Année;Coût initial (€);Loyer leasing (€);Revenu minage net (€);Revenu EDF (€);Cashflow annuel (€);Trésorerie cumulée (€)");
-    yearlyRows.forEach((row) => {
-      lines.push([
-        row.year,
-        formatNumberForExport(row.initialCost),
-        formatNumberForExport(row.leasing),
-        formatNumberForExport(row.miningNet),
-        formatNumberForExport(row.edf),
-        formatNumberForExport(row.cashflow),
-        formatNumberForExport(row.cumulative),
-      ].join(sep));
-    });
-    return lines.join("\n");
-  };
-
-  const handleDownloadCsv = () => {
-    const csv = buildCsvContent();
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `solarblock-recap-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleCopyForSheets = async () => {
-    const sep = "\t";
-    const lines: string[] = ["Libellé\tValeur"];
-    recapRows.forEach((r) => lines.push(`${r.label}\t${r.value}`));
-    lines.push("");
-    lines.push("Année\tCoût initial (€)\tLoyer leasing (€)\tRevenu minage net (€)\tRevenu EDF (€)\tCashflow annuel (€)\tTrésorerie cumulée (€)");
-    yearlyRows.forEach((row) => {
-      lines.push([
-        row.year,
-        formatNumberForExport(row.initialCost),
-        formatNumberForExport(row.leasing),
-        formatNumberForExport(row.miningNet),
-        formatNumberForExport(row.edf),
-        formatNumberForExport(row.cashflow),
-        formatNumberForExport(row.cumulative),
-      ].join(sep));
-    });
-    try {
-      await navigator.clipboard.writeText(lines.join("\n"));
-      setCopyFeedback(true);
-      setTimeout(() => setCopyFeedback(false), 2000);
-    } catch {
-      setCopyFeedback(false);
-    }
-  };
-
+function AnimatedText({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-6 px-4 py-6 md:flex-row md:gap-8 md:py-10">
-        {/* Sidebar paramètres */}
-        <aside className="w-full shrink-0 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 shadow-xl shadow-slate-950/40 md:w-80">
-          <div className="mb-6">
-            <h1 className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-400">
-              SolarBlock
-            </h1>
-            <p className="mt-2 text-lg font-semibold text-slate-50">
-              Simulateur de rentabilité
+    <motion.div variants={fadeUp} className={className}>
+      {children}
+    </motion.div>
+  );
+}
+
+export default function LandingPage() {
+  return (
+    <div className="min-h-screen bg-[#0c1222] text-slate-100">
+      <nav className="fixed left-0 right-0 top-0 z-10 border-b border-slate-800/80 bg-[#0c1222]/90 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+          <Link href="/" className="text-sm font-semibold uppercase tracking-widest text-slate-300 hover:text-white">
+            SolarBlock
+          </Link>
+          <Link
+            href="/simulateur"
+            className="rounded-full border border-slate-600 bg-slate-800/80 px-4 py-2 text-xs font-medium text-slate-200 transition hover:border-emerald-500 hover:bg-slate-800 hover:text-white"
+          >
+            Simulateur
+          </Link>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <header className="relative overflow-hidden px-4 pt-20 pb-28 md:pt-28 md:pb-36">
+        <div className="absolute inset-0 bg-gradient-to-b from-emerald-950/20 via-transparent to-transparent" />
+        <div className="absolute bottom-0 left-1/2 h-96 w-[120%] -translate-x-1/2 rounded-full bg-amber-500/5 blur-3xl" />
+        <div className="relative mx-auto max-w-4xl text-center">
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl"
+          >
+            Transformer l&apos;énergie solaire inutilisée en{" "}
+            <span className="bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent">
+              Or Numérique
+            </span>
+            .
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.15 }}
+            className="mt-6 text-lg text-slate-300 md:text-xl"
+          >
+            Votre parking devient une centrale de production d&apos;actifs.
+            Rentabilisez vos ombrières photovoltaïques obligatoires 2 à 3 fois
+            plus vite qu&apos;avec la revente EDF.
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="mt-10"
+          >
+            <Link
+              href="/simulateur"
+              className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400"
+            >
+              Calculer mon potentiel de gain
+            </Link>
+          </motion.div>
+        </div>
+      </header>
+
+      {/* Loi APER */}
+      <Section className="border-t border-slate-800 bg-slate-900/30 px-4 py-20 md:py-28">
+        <div className="mx-auto max-w-4xl">
+          <AnimatedText>
+            <h2 className="text-center text-2xl font-semibold text-white md:text-3xl">
+              Quand Contrainte Réglementaire rime avec Opportunité
+            </h2>
+          </AnimatedText>
+          <AnimatedText>
+            <p className="mt-6 text-center text-slate-300">
+              La Loi APER vous oblige à équiper vos parkings d&apos;ombrières.
             </p>
-            <p className="mt-1 text-xs text-slate-500">
-              Configurez vos hypothèses pour comparer Minage vs EDF OA.
+          </AnimatedText>
+          <AnimatedText>
+            <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center sm:gap-8">
+              <div className="rounded-2xl border border-slate-700 bg-slate-800/50 px-6 py-4 text-center">
+                <p className="text-sm font-medium text-amber-400">Juillet 2026</p>
+                <p className="mt-1 text-lg font-semibold text-white">
+                  Parkings &gt; 10 000 m²
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-700 bg-slate-800/50 px-6 py-4 text-center">
+                <p className="text-sm font-medium text-amber-400">Juillet 2028</p>
+                <p className="mt-1 text-lg font-semibold text-white">
+                  Parkings &gt; 1 500 m²
+                </p>
+              </div>
+            </div>
+          </AnimatedText>
+          <AnimatedText>
+            <p className="mt-10 text-center text-slate-400">
+              Des milliers d&apos;entreprises vont devoir investir. Ne faites pas
+              de cet investissement une charge, faites-en un{" "}
+              <strong className="text-emerald-400">levier de croissance</strong>.
             </p>
+          </AnimatedText>
+        </div>
+      </Section>
+
+      {/* Le Problème - Graphique surplus perdu */}
+      <Section className="border-t border-slate-800 px-4 py-20 md:py-28">
+        <div className="mx-auto max-w-4xl">
+          <AnimatedText>
+            <h2 className="text-center text-2xl font-semibold text-white md:text-3xl">
+              Le paradoxe du surplus énergétique
+            </h2>
+          </AnimatedText>
+          <AnimatedText>
+            <p className="mt-6 text-center text-slate-300">
+              L&apos;énergie solaire est intermittente et décalée de votre
+              consommation. Ce surplus est aujourd&apos;hui revendu au réseau
+              pour un rendement financier extrêmement faible.
+            </p>
+          </AnimatedText>
+          <AnimatedText>
+            <div className="mt-10 h-64 rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="surplusPerte" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#ef4444" stopOpacity={0.5} />
+                      <stop offset="100%" stopColor="#7f1d1d" stopOpacity={0.3} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="t" stroke="#64748b" tick={{ fontSize: 11 }} />
+                  <YAxis stroke="#64748b" tick={{ fontSize: 11 }} unit=" kW" />
+                  {/* Sous la courbe conso : fond (invisible) pour que le surplus soit bien entre les deux courbes */}
+                  <Area
+                    type="monotone"
+                    dataKey="conso"
+                    stackId="band"
+                    fill="transparent"
+                    stroke="none"
+                    isAnimationActive={false}
+                  />
+                  {/* Zone surplus = entre conso et prod (stack au-dessus de conso) */}
+                  <Area
+                    type="monotone"
+                    dataKey="surplus"
+                    stackId="band"
+                    fill="url(#surplusPerte)"
+                    stroke="none"
+                    name="Surplus (revendu EDF)"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="prod"
+                    stroke="#eab308"
+                    strokeWidth={2}
+                    dot={false}
+                    name="Production solaire"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="conso"
+                    stroke="#f1f5f9"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                    name="Consommation"
+                  />
+                  <Legend wrapperStyle={{ fontSize: "12px" }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+              <p className="mt-2 text-center text-xs text-red-400/90">
+                Zone rouge = énergie bradée à EDF (entre les deux courbes)
+              </p>
+            </div>
+          </AnimatedText>
+        </div>
+      </Section>
+
+      {/* La Solution SolarBlock */}
+      <Section className="border-t border-slate-800 bg-slate-900/30 px-4 py-20 md:py-28">
+        <div className="mx-auto max-w-4xl">
+          <AnimatedText>
+            <h2 className="text-center text-2xl font-semibold text-white md:text-3xl">
+              L&apos;Intelligence Artificielle au service de votre rentabilité
+            </h2>
+          </AnimatedText>
+          <AnimatedText>
+            <p className="mt-6 text-center text-slate-300">
+              Notre algorithme propriétaire active nos unités de calcul
+              (miners) uniquement lorsque l&apos;énergie verte n&apos;est pas
+              auto-consommée.
+            </p>
+          </AnimatedText>
+          <AnimatedText>
+            <div className="mt-10 h-64 rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="surplusOr" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#fcd34d" stopOpacity={0.6} />
+                      <stop offset="100%" stopColor="#b45309" stopOpacity={0.4} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="t" stroke="#64748b" tick={{ fontSize: 11 }} />
+                  <YAxis stroke="#64748b" tick={{ fontSize: 11 }} unit=" kW" />
+                  <Area
+                    type="monotone"
+                    dataKey="conso"
+                    stackId="band"
+                    fill="transparent"
+                    stroke="none"
+                    isAnimationActive={false}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="surplus"
+                    stackId="band"
+                    fill="url(#surplusOr)"
+                    stroke="none"
+                    name="Surplus monétisé (SolarBlock)"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="prod"
+                    stroke="#eab308"
+                    strokeWidth={2}
+                    dot={false}
+                    name="Production solaire"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="conso"
+                    stroke="#f1f5f9"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                    name="Consommation"
+                  />
+                  <Legend wrapperStyle={{ fontSize: "12px" }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+              <p className="mt-2 text-center text-xs text-amber-400/90">
+                Zone dorée = surplus transformé en actif (Bitcoin), entre les deux courbes
+              </p>
+            </div>
+          </AnimatedText>
+          <div className="mt-12 grid gap-6 md:grid-cols-3">
+            <AnimatedText>
+              <div className="rounded-2xl border border-slate-700 bg-slate-800/50 p-6">
+                <p className="font-semibold text-emerald-400">Rentabilité</p>
+                <p className="mt-2 text-sm text-slate-300">
+                  Monétisez chaque kWh excédentaire 2 à 3× plus cher que le
+                  tarif d&apos;achat.
+                </p>
+              </div>
+            </AnimatedText>
+            <AnimatedText>
+              <div className="rounded-2xl border border-slate-700 bg-slate-800/50 p-6">
+                <p className="font-semibold text-amber-400">Image</p>
+                <p className="mt-2 text-sm text-slate-300">
+                  Validez votre stratégie RSE : Énergie Renouvelable + Innovation
+                  Blockchain.
+                </p>
+              </div>
+            </AnimatedText>
+            <AnimatedText>
+              <div className="rounded-2xl border border-slate-700 bg-slate-800/50 p-6">
+                <p className="font-semibold text-sky-400">Sérénité</p>
+                <p className="mt-2 text-sm text-slate-300">
+                  SolarBlock gère tout : installation, gestion automatisée et
+                  maintenance.
+                </p>
+              </div>
+            </AnimatedText>
           </div>
+        </div>
+      </Section>
 
-          <div className="space-y-5">
-            {/* Paramètres globaux */}
-            <section className="space-y-3">
-              <h2 className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                Paramètres globaux
+      {/* Pédagogie Bitcoin */}
+      <Section className="border-t border-slate-800 px-4 py-20 md:py-28">
+        <div className="mx-auto max-w-4xl">
+          <div className="rounded-2xl border border-amber-500/20 bg-gradient-to-b from-amber-950/20 to-transparent px-6 py-12 md:px-12">
+            <AnimatedText>
+              <h2 className="text-center text-2xl font-semibold text-white md:text-3xl">
+                Le Bitcoin : Une réserve de valeur numérique
               </h2>
-
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                    Prix du BTC (€)
-                    <InfoBulle>
-                      Cours du Bitcoin utilisé pour valoriser les revenus minés. Hypothèse de travail pour la simulation.
-                    </InfoBulle>
-                  </label>
-                  <input
-                    type="number"
-                    value={btcPrice}
-                    onChange={(event) =>
-                      setBtcPrice(Number(event.target.value) || 0)
-                    }
-                    className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none ring-0 transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/30"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                    Difficulté réseau (EH/s)
-                    <InfoBulle>
-                      Unité : EH/s (Exahash/seconde). Une valeur de 1400 correspond à une hypothèse prudente (environ ×2 la difficulté actuelle), montrant que le modèle reste rentable même si la concurrence mondiale double.
-                    </InfoBulle>
-                  </label>
-                  <input
-                    type="number"
-                    value={difficulty}
-                    onChange={(event) =>
-                      setDifficulty(Number(event.target.value) || 0)
-                    }
-                    className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none ring-0 transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/30"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                    Tarif EDF OA (€/kWh)
-                    <InfoBulle>
-                      Tarif de revente du surplus d&apos;électricité à EDF Obligation d&apos;Achat (environ 0,06 €/kWh). C&apos;est la solution de référence à laquelle on compare le minage.
-                    </InfoBulle>
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={edfRate}
-                    onChange={(event) =>
-                      setEdfRate(Number(event.target.value) || 0)
-                    }
-                    className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none ring-0 transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/30"
-                  />
-                </div>
-              </div>
-            </section>
-
-            {/* Sélecteurs scénario & module */}
-            <section className="space-y-3">
-              <h2 className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                Profil client
-              </h2>
-
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                    Scénario
-                    <InfoBulle>
-                      Profil type (puissance installée, gisement solaire, autoconsommation hiver/été) qui détermine le surplus d&apos;électricité disponible pour le minage.
-                    </InfoBulle>
-                  </label>
-                  <select
-                    className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none ring-0 transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/30"
-                    value={scenarioId}
-                    onChange={(event) => setScenarioId(event.target.value)}
-                  >
-                    {SCENARIOS.map((scenario) => (
-                      <option key={scenario.id} value={scenario.id}>
-                        {scenario.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                    Module
-                    <InfoBulle>
-                      Configuration ASIC (puissance d&apos;absorption, CAPEX installation, leasing mensuel). Le dimensionnement doit correspondre au surplus du scénario pour une marge de sécurité technique.
-                    </InfoBulle>
-                  </label>
-                  <select
-                    className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 outline-none ring-0 transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/30"
-                    value={moduleId}
-                    onChange={(event) => setModuleId(event.target.value)}
-                  >
-                    {MODULES.map((module) => (
-                      <option key={module.id} value={module.id}>
-                        {module.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </section>
-
-            <Link
-              href="/scenarios"
-              className="inline-flex w-full items-center justify-center rounded-full border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-medium text-slate-100 transition hover:border-emerald-400 hover:bg-slate-900"
-            >
-              Voir les scénarios types
-            </Link>
-            <Link
-              href="/modules"
-              className="inline-flex w-full items-center justify-center rounded-full border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs font-medium text-slate-100 transition hover:border-emerald-400 hover:bg-slate-900"
-            >
-              Voir les modules ASIC
-            </Link>
-
-            {/* Mode avancé */}
-            <section className="space-y-3 border-t border-slate-800 pt-4">
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Mode avancé
-                </h2>
-                <label className="inline-flex cursor-pointer items-center gap-2 text-xs text-slate-400">
-                  <span>Afficher</span>
-                  <button
-                    type="button"
-                    onClick={() => setShowAdvanced((prev) => !prev)}
-                    className={`relative inline-flex h-5 w-9 items-center rounded-full border transition ${
-                      showAdvanced
-                        ? "border-emerald-500 bg-emerald-500/30"
-                        : "border-slate-600 bg-slate-900"
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 rounded-full bg-white shadow transition ${
-                        showAdvanced ? "translate-x-4" : "translate-x-1"
-                      }`}
-                    />
-                  </button>
-                </label>
-              </div>
-
-              {showAdvanced && (
-                <div className="space-y-3 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
-                  <div className="space-y-1.5">
-                    <label className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                      Efficacité ASIC (J/TH)
-                      <InfoBulle>
-                        Consommation électrique en joules par TH/s. Plus ce chiffre est bas, plus les machines sont efficaces (ex. 20 J/TH). Détermine le hashrate pour un surplus donné.
-                      </InfoBulle>
-                    </label>
-                    <input
-                      type="number"
-                      value={asicEfficiency}
-                      onChange={(event) =>
-                        setAsicEfficiency(Number(event.target.value) || 0)
-                      }
-                      className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none ring-0 transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/30"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                      Gisement solaire (kWh/kWc/an)
-                      <InfoBulle>
-                        Production solaire annuelle typique en kWh par kWc installé (ex. 1200 kWh/kWc/an en France). Utilisé pour calculer le surplus à partir de la puissance installée du scénario.
-                      </InfoBulle>
-                    </label>
-                    <input
-                      type="number"
-                      value={solarResource}
-                      onChange={(event) =>
-                        setSolarResource(Number(event.target.value) || 0)
-                      }
-                      className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none ring-0 transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/30"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="flex items-center gap-1.5 text-xs font-medium text-slate-300">
-                      Marge SolarBlock (%)
-                      <InfoBulle>
-                        Commission prélevée sur le revenu minage brut (10 %). Le client perçoit 90 % des revenus BTC ; SolarBlock reste propriétaire du matériel et assure la maintenance.
-                      </InfoBulle>
-                    </label>
-                    <input
-                      type="number"
-                      value={margin}
-                      onChange={(event) =>
-                        setMargin(Number(event.target.value) || 0)
-                      }
-                      className="w-full rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 outline-none ring-0 transition focus:border-emerald-400/60 focus:ring-2 focus:ring-emerald-500/30"
-                    />
-                  </div>
-
-                  <p className="pt-1 text-[10px] leading-relaxed text-slate-500">
-                    Ces paramètres permettent d&apos;ajuster les hypothèses
-                    techniques du modèle (efficacité du hardware, gisement
-                    solaire moyen, marge SolarBlock) pour coller à la réalité du
-                    site client.
+            </AnimatedText>
+            <div className="mt-10 grid gap-6 md:grid-cols-3">
+              <AnimatedText>
+                <div className="flex flex-col items-center text-center">
+                  <span className="text-2xl">🛡️</span>
+                  <p className="mt-2 font-semibold text-amber-300">Solide</p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Impossible à contrefaire.
                   </p>
                 </div>
-              )}
-            </section>
-          </div>
-        </aside>
-
-        {/* Zone principale résultats */}
-        <main className="flex-1 rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-950 via-slate-950 to-slate-900/90 p-5 shadow-[0_0_60px_rgba(0,0,0,0.75)] md:p-7">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-slate-50 md:text-2xl">
-                Résultats de la simulation
-              </h2>
-              <p className="mt-1 text-sm text-slate-400">
-                Les KPIs, le tableau 5 ans et la comparaison Minage vs EDF se
-                mettent à jour en temps réel.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
-                Simulation en temps réel
-              </div>
-              <div className="flex rounded-full border border-slate-700 bg-slate-900/80 p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setViewMode("client")}
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                    viewMode === "client"
-                      ? "bg-slate-700 text-slate-100"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  Renta Client
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode("solarblock")}
-                  className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                    viewMode === "solarblock"
-                      ? "bg-amber-600/80 text-white"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  Renta SolarBlock
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {viewMode === "client" && (
-          <>
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-              <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-400">
-                ROI estimé
-                <InfoBulle>
-                  Temps de retour sur investissement : CAPEX installation ÷ Avantage annuel réel. En dessous de 2 ans, le projet est considéré comme très rentable pour les investisseurs.
-                </InfoBulle>
-              </p>
-              <p className="mt-3 text-3xl font-semibold text-emerald-400">
-                <span className={roiBadgeColor}>
-                  {formatYears(roiSafe)}{" "}
-                  {Number.isFinite(roiSafe ?? NaN) && "ans"}
-                </span>
-              </p>
-              <p className="mt-2 text-xs text-slate-500">
-                Temps de retour sur investissement basé sur l&apos;avantage
-                net par rapport à EDF OA.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-              <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-400">
-                Avantage annuel réel
-                <InfoBulle>
-                  Gain net annuel après marge SolarBlock et leasing : (Revenu minage net − Revenu EDF) − Loyer leasing annuel. C&apos;est le flux de trésorerie annuel supplémentaire par rapport à la revente EDF.
-                </InfoBulle>
-              </p>
-              <p className="mt-3 text-3xl font-semibold text-slate-100">
-                {formatCurrency(annualAdvantageSafe)}
-              </p>
-              <p className="mt-2 text-xs text-slate-500">
-                Différence nette entre Minage et EDF OA après leasing.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-              <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-400">
-                Gain cumulé sur 5 ans
-                <InfoBulle>
-                  Projection : Avantage annuel réel × 5 ans. Hypothèse de flux constants (cours BTC et difficulté non réajustés). À mettre en regard du coût d&apos;installation pour illustrer la rentabilité sur la durée.
-                </InfoBulle>
-              </p>
-              <p className="mt-3 text-3xl font-semibold text-slate-100">
-                {formatCurrency(gain5YearsSafe)}
-              </p>
-              <p className="mt-2 text-xs text-slate-500">
-                Projection à horizon 5 ans (hors variation BTC/difficulté).
-              </p>
-            </div>
-          </div>
-
-          {/* Tableau détaillé sur 5 ans */}
-          <div className="mt-8 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/60">
-            <div className="border-b border-slate-800 px-4 py-3">
-              <p className="text-sm font-medium text-slate-100">
-                Projection sur 5 ans
-              </p>
-              <p className="text-xs text-slate-500">
-                Cashflow annuel et cumulé pour la solution Minage vs revenu EDF
-              </p>
-            </div>
-            <div className="w-full overflow-x-auto">
-              <table className="min-w-full text-left text-xs text-slate-300">
-                <thead className="border-b border-slate-800 bg-slate-900/80">
-                  <tr>
-                    <th className="px-4 py-3 font-medium">Année</th>
-                    <th className="px-4 py-3 font-medium">Coût initial</th>
-                    <th className="px-4 py-3 font-medium">Loyer leasing</th>
-                    <th className="px-4 py-3 font-medium">Revenu minage net</th>
-                    <th className="px-4 py-3 font-medium">Revenu EDF</th>
-                    <th className="px-4 py-3 font-medium">Cashflow annuel</th>
-                    <th className="px-4 py-3 font-medium">
-                      Trésorerie cumulée
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {yearlyRows.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={7}
-                        className="px-4 py-6 text-center text-slate-500"
-                      >
-                        Les données de simulation apparaîtront ici dès que les
-                        paramètres seront valides.
-                      </td>
-                    </tr>
-                  ) : (
-                    yearlyRows.map((row) => (
-                      <tr
-                        key={row.year}
-                        className="border-t border-slate-900/80 hover:bg-slate-900/60"
-                      >
-                        <td className="px-4 py-3 text-slate-200">
-                          {row.year}
-                        </td>
-                        <td className="px-4 py-3">
-                          {formatCurrency(row.initialCost)}
-                        </td>
-                        <td className="px-4 py-3">
-                          {formatCurrency(row.leasing)}
-                        </td>
-                        <td className="px-4 py-3">
-                          {formatCurrency(row.miningNet)}
-                        </td>
-                        <td className="px-4 py-3">
-                          {formatCurrency(row.edf)}
-                        </td>
-                        <td className="px-4 py-3">
-                          {formatCurrency(row.cashflow)}
-                        </td>
-                        <td className="px-4 py-3">
-                          {formatCurrency(row.cumulative)}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Graphique comparaison Minage vs EDF */}
-          <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <div>
-                <p className="text-sm font-medium text-slate-100">
-                  Revenu annuel : Minage vs EDF OA
-                </p>
-                <p className="text-xs text-slate-500">
-                  Visualisation comparative du revenu brut net minage et du
-                  revenu EDF sur la base des paramètres actuels.
-                </p>
-              </div>
-            </div>
-            {comparisonChartData.length === 0 ? (
-              <div className="flex h-52 items-center justify-center rounded-xl border border-dashed border-slate-800 bg-slate-950/60 text-xs text-slate-500">
-                Ajustez les paramètres pour afficher le graphique comparatif.
-              </div>
-            ) : (
-              <div className="h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={comparisonChartData}
-                    margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="#1f2937"
-                      vertical={false}
-                    />
-                    <XAxis dataKey="name" stroke="#9ca3af" />
-                    <YAxis
-                      stroke="#9ca3af"
-                      tickFormatter={(value) =>
-                        `${Math.round(value / 1_000)}k`
-                      }
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#020617",
-                        borderColor: "#1f2937",
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
-                      formatter={(value: number) =>
-                        formatCurrency(Number(value))
-                      }
-                    />
-                    <Legend />
-                    <Bar dataKey="Minage net" fill="#22c55e" radius={6} />
-                    <Bar dataKey="EDF OA" fill="#38bdf8" radius={6} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-          </div>
-
-          {/* Tableau récapitulatif 100 % + export Sheets/CSV */}
-          <div className="mt-8 overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/60">
-            <div className="flex flex-col gap-3 border-b border-slate-800 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-100">
-                  Tableau récapitulatif (100 % des éléments)
-                </p>
-                <p className="text-xs text-slate-500">
-                  Paramètres, scénario, module, KPIs et détail 5 ans — exportable en CSV ou à coller dans Google Sheets.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={handleDownloadCsv}
-                  className="inline-flex items-center justify-center rounded-full border border-slate-600 bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:border-emerald-400 hover:bg-slate-700"
-                >
-                  Télécharger CSV
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCopyForSheets}
-                  className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500"
-                >
-                  {copyFeedback ? "Copié !" : "Copier pour Sheets"}
-                </button>
-              </div>
-            </div>
-            <div className="w-full overflow-x-auto">
-              <table className="min-w-full text-left text-xs text-slate-300">
-                <thead className="border-b border-slate-800 bg-slate-900/80">
-                  <tr>
-                    <th className="px-4 py-2 font-medium text-slate-400">Libellé</th>
-                    <th className="px-4 py-2 font-medium text-slate-400">Valeur</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recapRows.length === 0 ? (
-                    <tr>
-                      <td colSpan={2} className="px-4 py-4 text-center text-slate-500">
-                        Ajustez les paramètres pour afficher le récapitulatif.
-                      </td>
-                    </tr>
-                  ) : (
-                    recapRows.map((row, i) => (
-                      <tr key={i} className="border-t border-slate-900/80">
-                        <td className="px-4 py-2 text-slate-300">{row.label}</td>
-                        <td className="px-4 py-2 font-medium text-slate-100">{row.value}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {yearlyRows.length > 0 && (
-              <>
-                <div className="border-t border-slate-800 px-4 py-2">
-                  <p className="text-xs font-medium text-slate-400">Détail par année (5 ans)</p>
+              </AnimatedText>
+              <AnimatedText>
+                <div className="flex flex-col items-center text-center">
+                  <span className="text-2xl">🌍</span>
+                  <p className="mt-2 font-semibold text-amber-300">Décentralisé</p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Échange de pair-à-pair, sans intermédiaire.
+                  </p>
                 </div>
-                <div className="w-full overflow-x-auto">
-                  <table className="min-w-full text-left text-xs text-slate-300">
-                    <thead className="border-b border-slate-800 bg-slate-900/80">
-                      <tr>
-                        <th className="px-4 py-2 font-medium">Année</th>
-                        <th className="px-4 py-2 font-medium">Coût initial</th>
-                        <th className="px-4 py-2 font-medium">Loyer leasing</th>
-                        <th className="px-4 py-2 font-medium">Revenu minage net</th>
-                        <th className="px-4 py-2 font-medium">Revenu EDF</th>
-                        <th className="px-4 py-2 font-medium">Cashflow annuel</th>
-                        <th className="px-4 py-2 font-medium">Trésorerie cumulée</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {yearlyRows.map((row) => (
-                        <tr key={row.year} className="border-t border-slate-900/80">
-                          <td className="px-4 py-2 text-slate-200">{row.year}</td>
-                          <td className="px-4 py-2">{formatCurrency(row.initialCost)}</td>
-                          <td className="px-4 py-2">{formatCurrency(row.leasing)}</td>
-                          <td className="px-4 py-2">{formatCurrency(row.miningNet)}</td>
-                          <td className="px-4 py-2">{formatCurrency(row.edf)}</td>
-                          <td className="px-4 py-2">{formatCurrency(row.cashflow)}</td>
-                          <td className="px-4 py-2">{formatCurrency(row.cumulative)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              </AnimatedText>
+              <AnimatedText>
+                <div className="flex flex-col items-center text-center">
+                  <span className="text-2xl">💎</span>
+                  <p className="mt-2 font-semibold text-amber-300">Rare</p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Quantité fixée à 21 millions d&apos;unités. Jamais plus.
+                  </p>
                 </div>
-              </>
-            )}
-          </div>
-          </>
-          )}
-
-          {viewMode === "solarblock" && (
-            <div className="mt-6 space-y-6">
-              <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-2 text-xs text-amber-200/90">
-                Vue interne SolarBlock — marges et rentabilité par projet (données non visibles client).
-              </div>
-
-              {!sbProfit ? (
-                <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-8 text-center text-sm text-slate-500">
-                  Choisissez un scénario et un module pour afficher la rentabilité SolarBlock sur ce projet.
-                </div>
-              ) : (
-                <>
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                        Cashflow immédiat (J-0)
-                      </p>
-                      <p className="mt-3 text-2xl font-semibold text-amber-400">
-                        {formatCurrency(sbProfit.marginInstall)}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Marge à l&apos;installation (facturé client − coût interne).
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                        MRR (revenu récurrent mensuel)
-                      </p>
-                      <p className="mt-3 text-2xl font-semibold text-slate-100">
-                        {formatCurrency(sbProfit.mrr)}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Marge leasing mensuelle + commission minage mensuelle.
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                        LTV client (5 ans)
-                      </p>
-                      <p className="mt-3 text-2xl font-semibold text-emerald-400">
-                        {formatCurrency(sbProfit.profitTotal5y)}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Profit total SolarBlock sur ce projet sur 5 ans.
-                      </p>
-                    </div>
-                  </div>
-
-                  {sbStackedBarData.length > 0 && (
-                    <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-                      <p className="mb-3 text-sm font-medium text-slate-100">
-                        Sources de profit (5 ans)
-                      </p>
-                      <div className="h-56">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart
-                            data={sbStackedBarData}
-                            layout="vertical"
-                            margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
-                          >
-                            <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" horizontal={false} />
-                            <XAxis type="number" stroke="#9ca3af" tickFormatter={(v) => `${Math.round(v / 1_000)}k €`} />
-                            <YAxis type="category" dataKey="name" width={140} stroke="#9ca3af" />
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: "#020617",
-                                borderColor: "#1f2937",
-                                borderRadius: 8,
-                                fontSize: 12,
-                              }}
-                              formatter={(value: number) => formatCurrency(Number(value))}
-                            />
-                            <Legend />
-                            <Bar dataKey="Installation" stackId="a" fill="#f59e0b" radius={0} />
-                            <Bar dataKey="Marge Leasing" stackId="a" fill="#22c55e" radius={0} />
-                            <Bar dataKey="Commission Minage" stackId="a" fill="#38bdf8" radius={[0, 4, 4, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="rounded-xl border border-slate-700 bg-slate-900/60 px-4 py-3">
-                    <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                      Stress test (scénario du pire)
-                    </p>
-                    <p className="mt-2 text-sm text-slate-200">
-                      <strong className="text-amber-300">Revenus fixes (sécurisés)</strong> : {formatCurrency(sbProfit.revenusFixes)} — Installation + marge leasing.
-                    </p>
-                    <p className="mt-1 text-sm text-slate-200">
-                      <strong className="text-sky-300">Revenus variables (risqués)</strong> : {formatCurrency(sbProfit.revenusVariables)} — Commission minage (dépend du cours BTC).
-                    </p>
-                    <p className="mt-3 rounded-lg bg-slate-800/80 px-3 py-2 text-xs text-slate-300">
-                      Même si le Bitcoin tombe à 0 €, SolarBlock sécurise <strong className="text-white">{formatCurrency(sbProfit.revenusFixes)}</strong> de marge sur ce projet via l&apos;installation et le leasing.
-                    </p>
-                  </div>
-                </>
-              )}
+              </AnimatedText>
             </div>
-          )}
+            <AnimatedText>
+              <p className="mt-10 text-center text-slate-300">
+                Contrairement à l&apos;or, il s&apos;échange instantanément. Vos
+                excédents solaires sont transformés en un actif financier liquide
+                et auditable.
+              </p>
+            </AnimatedText>
+          </div>
+        </div>
+      </Section>
 
-          <p className="mt-6 text-[11px] text-slate-500">
-            Les résultats fournis par ce simulateur sont indicatifs et dépendent
-            fortement de la difficulté du réseau Bitcoin et de l&apos;évolution du
-            cours. Ils ne constituent pas une garantie de performance.
+      {/* Business model */}
+      <Section className="border-t border-slate-800 bg-slate-900/30 px-4 py-20 md:py-28">
+        <div className="mx-auto max-w-4xl">
+          <AnimatedText>
+            <h2 className="text-center text-2xl font-semibold text-white md:text-3xl">
+              Un modèle transparent
+            </h2>
+          </AnimatedText>
+          <div className="mt-12 grid gap-8 md:grid-cols-2">
+            <AnimatedText>
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-6">
+                <p className="font-semibold text-emerald-400">Pour vous (client)</p>
+                <p className="mt-3 text-sm text-slate-300">
+                  Vous êtes propriétaire du matériel. Vous recevez les revenus
+                  (Euro ou BTC) chaque semaine.
+                </p>
+              </div>
+            </AnimatedText>
+            <AnimatedText>
+              <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-6">
+                <p className="font-semibold text-amber-400">Pour nous (SolarBlock)</p>
+                <p className="mt-3 text-sm text-slate-300">
+                  Nous facturons l&apos;installation (CAPEX) et prélevons une
+                  commission de performance sur les BTC générés. Algorithme de
+                  modulation automatique inclus.
+                </p>
+              </div>
+            </AnimatedText>
+          </div>
+        </div>
+      </Section>
+
+      {/* Footer CTA */}
+      <footer className="border-t border-slate-800 px-4 py-16 md:py-20">
+        <div className="mx-auto max-w-3xl text-center">
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-lg text-slate-300 md:text-xl"
+          >
+            Rejoignez le tsunami de l&apos;installation PV en entreprise.
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+            className="mt-8"
+          >
+            <Link
+              href="/simulateur"
+              className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-8 py-4 text-base font-semibold text-white shadow-lg shadow-emerald-500/25 transition hover:bg-emerald-400"
+            >
+              Accéder au Simulateur de Rentabilité
+            </Link>
+          </motion.div>
+          <p className="mt-8 text-xs text-slate-500">
+            © SolarBlock — Transformer la contrainte réglementaire en opportunité.
           </p>
-        </main>
-      </div>
+        </div>
+      </footer>
     </div>
   );
 }
