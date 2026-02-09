@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Bar,
@@ -60,7 +60,7 @@ function InfoBulle({ children, className }: { children: React.ReactNode; classNa
   );
 }
 
-export default function SimulateurPage() {
+function SimulateurPageInner() {
   const searchParams = useSearchParams();
 
   const initialScenarioId =
@@ -945,5 +945,19 @@ export default function SimulateurPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function SimulateurPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-slate-950 text-sm text-slate-400">
+          Chargement du simulateur...
+        </div>
+      }
+    >
+      <SimulateurPageInner />
+    </Suspense>
   );
 }
