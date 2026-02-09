@@ -732,9 +732,7 @@ export default function SimulateurPage() {
                         borderRadius: 8,
                         fontSize: 12,
                       }}
-                      formatter={(value: number) =>
-                        formatCurrency(Number(value))
-                      }
+                      formatter={(value) => formatCurrency(Number(value))}
                     />
                     <Legend />
                     <Bar dataKey="Minage net" fill="#22c55e" radius={6} />
@@ -908,7 +906,7 @@ export default function SimulateurPage() {
                                 borderRadius: 8,
                                 fontSize: 12,
                               }}
-                              formatter={(value: number) => formatCurrency(Number(value))}
+                              formatter={(value) => formatCurrency(Number(value))}
                             />
                             <Legend />
                             <Bar dataKey="Installation" stackId="a" fill="#f59e0b" radius={0} />

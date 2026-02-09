@@ -1,4 +1,4 @@
-# 🌞 SolarBlock — Simulateur de rentabilité
+# 🌞 SolarBlock - Simulateur de rentabilité
 
 Ce dépôt contient **l’outil de simulation SolarBlock** : une application web qui permet de montrer à un client ou à un investisseur combien il gagne en minant son surplus solaire avec SolarBlock, par rapport à la revente classique à EDF.
 
